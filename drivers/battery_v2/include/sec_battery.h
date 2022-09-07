@@ -80,6 +80,7 @@
 #define SEC_BAT_CURRENT_EVENT_SELECT_PDO		0x20000
 
 #define BATT_MISC_EVENT_BATTERY_HEALTH			0x000F0000
+#define BATT_MISC_EVENT_FULL_CAPACITY		0x01000000
 
 #define BATTERY_HEALTH_SHIFT                16
 enum misc_battery_health {
@@ -462,6 +463,7 @@ struct sec_battery_info {
 	unsigned long cal_safety_time;
 
 	int fg_reset;
+	int batt_full_capacity;
 };
 
 /* event check */
