@@ -6,7 +6,8 @@
 #include "zdata.h"
 #include "compress.h"
 #include <linux/prefetch.h>
-#include <linux/cpuhotplug.h>
+#include <linux/overflow.h>
+#include <linux/cpu.h>
 #include <trace/events/erofs.h>
 
 /*
