@@ -11,7 +11,6 @@ subdir-$(CONFIG_SECURITY_YAMA)		+= yama
 subdir-$(CONFIG_SECURITY_LOADPIN)	+= loadpin
 subdir-$(CONFIG_ARCH_QCOM)		+= pfe
 
-
 # always enable default capabilities
 obj-y					+= commoncap.o
 obj-$(CONFIG_MMU)			+= min_addr.o
@@ -33,20 +32,11 @@ obj-$(CONFIG_CGROUP_DEVICE)		+= device_cgroup.o
 subdir-$(CONFIG_INTEGRITY)		+= integrity
 obj-$(CONFIG_INTEGRITY)			+= integrity/
 
-# PROCA module
-subdir-$(CONFIG_PROCA)			+= proca
-obj-$(CONFIG_PROCA)			+= proca/
-
-# GAF module for PROCA, Secure Storage 1
-subdir-$(CONFIG_GAF) += proca/gaf
-obj-$(CONFIG_GAF)    += proca/gaf/
-
 # Knox SDP
 ifndef CONFIG_NO_SDP_BASE
 obj-y += sdp/
 obj-y += sdp/built-in.o
 endif
-
 
 #TZ ICCC
 obj-$(CONFIG_TZ_ICCC)     += tz_iccc/
