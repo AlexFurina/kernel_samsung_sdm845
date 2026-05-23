@@ -214,10 +214,6 @@ obj-$(CONFIG_UH)        += uh/
 # CONFIG_SEC_DEBUG
 obj-y				+= debug/
 
-# FIVE TEE driver
-obj-$(CONFIG_FIVE_TEE_DRIVER)	+= security/samsung/five_tee_driver/
-obj-$(CONFIG_ICD)		+= security/samsung/icdrv/
-
 # MPSD driver
 obj-$(CONFIG_MPSD)	+= mpsd/
 
