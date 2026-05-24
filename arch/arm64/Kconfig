@@ -1701,9 +1701,6 @@ config MACH_LYKANLTE_CHNZC
         bool "Samsung LYKANLTE CHN OPEN"
         help
           Support for Samsung LYKANLTE CHN OPEN device.
-config LOD_SEC
-	bool "kernel security re-enforcement for Linux On Dex, including cap re-check and seccomp report"
-	default n
 
 config TIMA
 	bool "Enable TIMA(Trustzone based Integrity Measurement Archtecture feature"
