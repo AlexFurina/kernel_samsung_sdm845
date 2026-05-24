@@ -20,6 +20,7 @@
 
 static const char * const backends[] = {
 	"lzo",
+	"lzo-rle",
 #if IS_ENABLED(CONFIG_CRYPTO_LZ4)
 	"lz4",
 #endif
@@ -28,9 +29,6 @@ static const char * const backends[] = {
 #endif
 #if IS_ENABLED(CONFIG_CRYPTO_LZ4HC)
 	"lz4hc",
-#endif
-#if IS_ENABLED(CONFIG_CRYPTO_LZ4KD)
-	"lz4kd",
 #endif
 #if IS_ENABLED(CONFIG_CRYPTO_842)
 	"842",
@@ -171,7 +169,7 @@ static int __zcomp_cpu_notifier(struct zcomp *comp,
 {
 	struct zcomp_strm *zstrm;
 
-	switch (action) {
+	switch (action & ~CPU_TASKS_FROZEN) {
 	case CPU_UP_PREPARE:
 		if (WARN_ON(*per_cpu_ptr(comp->stream, cpu)))
 			break;
