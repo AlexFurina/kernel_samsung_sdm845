@@ -1,0 +1,244 @@
+config SEC_STARQLTE_PROJECT
+	depends on ARCH_SDM845
+	default n
+	bool "Samsung STARQLTE Project"
+	help
+	  Support for Samsung STARQLTE Project
+
+config MACH_STARQLTE_SINGLE
+	depends on SEC_STARQLTE_PROJECT
+	default n
+	bool "Samsung STARQLTE SQ"
+	help
+	  Support for Samsung STARQLTE USA SQ device.
+
+config SEC_STAR2QLTE_PROJECT
+	depends on ARCH_SDM845
+	default n
+	bool "Samsung STAR2QLTE Project"
+	help
+	  Support for Samsung STAR2QLTE Project
+
+config MACH_STAR2QLTE_SINGLE
+	depends on SEC_STAR2QLTE_PROJECT
+	default n
+	bool "Samsung STAR2QLTE SQ"
+	help
+	  Support for Samsung STAR2QLTE USA SQ device.
+
+config MACH_STARQLTE_OPEN
+	depends on SEC_STARQLTE_PROJECT
+	default n
+	bool "Samsung STARQLTE OPEN"
+	help
+	  Support for Samsung STARQLTE USA OPEN device.
+
+config MACH_STAR2QLTE_OPEN
+	depends on SEC_STAR2QLTE_PROJECT
+	default n
+	bool "Samsung STAR2QLTE OPEN"
+	help
+	  Support for Samsung STAR2QLTE USA OPEN device.
+
+config MACH_STARQLTE_LDU
+	depends on SEC_STARQLTE_PROJECT
+	default n
+	bool "Samsung STARQLTE LDU"
+	help
+	  Support for Samsung STARQLTE USA LDU device.
+
+config MACH_STAR2QLTE_LDU
+	depends on SEC_STAR2QLTE_PROJECT
+	default n
+	bool "Samsung STAR2QLTE LDU"
+	help
+	  Support for Samsung STAR2QLTE USA LDU device.
+
+config MACH_STARQLTE_CAN_SINGLE
+	depends on SEC_STARQLTE_PROJECT
+	default n
+	bool "Samsung STARQLTE CAN SQ"
+	help
+	  Support for Samsung STARQLTE CAN SQ device.
+
+config MACH_STAR2QLTE_CAN_SINGLE
+	depends on SEC_STAR2QLTE_PROJECT
+	default n
+	bool "Samsung STAR2QLTE CAN SQ"
+	help
+	  Support for Samsung STAR2QLTE CAN SQ device.
+
+config MACH_STARQLTE_CHNZC
+        depends on SEC_STARQLTE_PROJECT
+        default n
+        bool "Samsung STARQLTE CHN OPEN"
+        help
+          Support for Samsung STARQLTE CHN OPEN device.
+
+config MACH_STAR2QLTE_CHNZC
+        depends on SEC_STAR2QLTE_PROJECT
+        default n
+        bool "Samsung STAR2QLTE CHN OPEN"
+        help
+          Support for Samsung STAR2QLTE CHN OPEN device.
+
+config MACH_STARQLTE_CHNHK
+        depends on SEC_STARQLTE_PROJECT
+        default n
+        bool "Samsung STARQLTE CHN HK"
+        help
+          Support for Samsung STARQLTE CHN HK device.
+
+config MACH_STAR2QLTE_CHNHK
+        depends on SEC_STAR2QLTE_PROJECT
+        default n
+        bool "Samsung STAR2QLTE CHN HK"
+        help
+          Support for Samsung STAR2QLTE CHN HK device.
+
+config MACH_STARQLTE_CHNZM
+        depends on SEC_STARQLTE_PROJECT
+        default n
+        bool "Samsung STARQLTE CHN CMCC"
+        help
+          Support for Samsung STARQLTE CHN CMCC device.
+
+config MACH_STAR2QLTE_CHNZM
+        depends on SEC_STAR2QLTE_PROJECT
+        default n
+        bool "Samsung STAR2QLTE CHN CMCC"
+        help
+          Support for Samsung STAR2QLTE CHN CMCC device.
+
+config MACH_STARQLTE_CHN_LDU
+        depends on SEC_STARQLTE_PROJECT
+        default n
+        bool "Samsung STARQLTE CHN LDU"
+        help
+          Support for Samsung STARQLTE CHN LDU device.
+
+config MACH_STAR2QLTE_CHN_LDU
+        depends on SEC_STAR2QLTE_PROJECT
+        default n
+        bool "Samsung STAR2QLTE CHN LDU"
+        help
+          Support for Samsung STAR2QLTE CHNLDU device.
+
+config MACH_STARQLTE_DCM
+        depends on SEC_STARQLTE_PROJECT
+        default n
+        bool "Samsung STARQLTE JPN DCM"
+        help
+          Support for Samsung STARQLTE JPN DCM device.
+
+config MACH_STAR2QLTE_DCM
+        depends on SEC_STAR2QLTE_PROJECT
+        default n
+        bool "Samsung STAR2QLTE JPN DCM"
+        help
+          Support for Samsung STAR2QLTE JPN DCM device.
+
+config MACH_STARQLTE_KDI
+        depends on SEC_STARQLTE_PROJECT
+        default n
+        bool "Samsung STARQLTE JPN KDI"
+        help
+          Support for Samsung STARQLTE JPN KDI device.
+
+config MACH_STAR2QLTE_KDI
+        depends on SEC_STAR2QLTE_PROJECT
+        default n
+        bool "Samsung STAR2QLTE JPN KDI"
+        help
+          Support for Samsung STAR2QLTE JPN KDI device.
+
+config SEC_CROWNQLTE_PROJECT
+	depends on ARCH_SDM845
+	default n
+	bool "Samsung CROWNQLTE Project"
+	help
+	  Support for Samsung CROWNQLTE Project
+
+config SEC_LYKANLTE_PROJECT
+	depends on ARCH_SDM845
+	default n
+	bool "Samsung LYKANLTE Project"
+	help
+	  Support for Samsung LYKANLTE Project
+
+config MACH_CROWNQLTE_USA_SINGLE
+	depends on SEC_CROWNQLTE_PROJECT
+	default n
+	bool "Samsung CROWNQLTE USA SQ"
+	help
+	  Support for Samsung CROWNQLTE USA SQ device.
+
+config MACH_CROWNQLTE_USA_OPEN
+	depends on SEC_CROWNQLTE_PROJECT
+	default n
+	bool "Samsung CROWNQLTE USA SE"
+	help
+	  Support for Samsung CROWNQLTE USA OPEN device.
+
+config MACH_CROWNQLTE_USA_LDU
+	depends on SEC_CROWNQLTE_PROJECT
+	default n
+	bool "Samsung CROWNQLTE LDU"
+	help
+	  Support for Samsung CROWNQLTE USA LDU device.
+
+config MACH_CROWNQLTE_CAN_SINGLE
+	depends on SEC_CROWNQLTE_PROJECT
+	default n
+	bool "Samsung CROWNQLTE CAN SQ"
+	help
+	  Support for Samsung CROWNQLTE CAN SQ device.
+
+config MACH_CROWNQLTE_CHNZC
+	depends on SEC_CROWNQLTE_PROJECT
+	default n
+	bool "Samsung CROWNQLTE CHN OPEN"
+	help
+	  Support for Samsung CROWNQLTE CHN OPEN device.
+
+config MACH_CROWNQLTE_CHN_LDU
+        depends on SEC_CROWNQLTE_PROJECT
+        default n
+        bool "Samsung CROWNQLTE CHN LDU"
+        help
+          Support for Samsung CROWNQLTE CHN LDU device.
+
+config MACH_CROWNQLTE_CHNZM
+	depends on SEC_CROWNQLTE_PROJECT
+	default n
+	bool "Samsung CROWNQLTE CHN CMCC"
+	help
+	  Support for Samsung CROWNQLTE CHN CMCC device.
+
+config MACH_CROWNQLTE_CHNHK
+	depends on SEC_CROWNQLTE_PROJECT
+	default n
+	bool "Samsung CROWNQLTE CHN HK"
+	help
+	  Support for Samsung CROWNQLTE CHN HK device.
+
+config MACH_CROWNQLTE_DCM
+        depends on SEC_CROWNQLTE_PROJECT
+        default n
+        bool "Samsung CROWNQLTE JPN DCM"
+        help
+          Support for Samsung CROWNQLTE JPN DCM device.
+
+config MACH_CROWNQLTE_KDI
+        depends on SEC_CROWNQLTE_PROJECT
+        default n
+        bool "Samsung CROWNQLTE JPN KDI"
+        help
+          Support for Samsung CROWNQLTE JPN KDI device.
+
+config MACH_LYKANLTE_CHNZC
+        depends on SEC_LYKANLTE_PROJECT
+        default n
+        bool "Samsung LYKANLTE CHN OPEN"
+        help
+          Support for Samsung LYKANLTE CHN OPEN device.
