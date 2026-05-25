@@ -40,20 +40,6 @@ config MACH_STAR2QLTE_OPEN
 	help
 	  Support for Samsung STAR2QLTE USA OPEN device.
 
-config MACH_STARQLTE_LDU
-	depends on SEC_STARQLTE_PROJECT
-	default n
-	bool "Samsung STARQLTE LDU"
-	help
-	  Support for Samsung STARQLTE USA LDU device.
-
-config MACH_STAR2QLTE_LDU
-	depends on SEC_STAR2QLTE_PROJECT
-	default n
-	bool "Samsung STAR2QLTE LDU"
-	help
-	  Support for Samsung STAR2QLTE USA LDU device.
-
 config MACH_STARQLTE_CAN_SINGLE
 	depends on SEC_STARQLTE_PROJECT
 	default n
@@ -110,20 +96,6 @@ config MACH_STAR2QLTE_CHNZM
         help
           Support for Samsung STAR2QLTE CHN CMCC device.
 
-config MACH_STARQLTE_CHN_LDU
-        depends on SEC_STARQLTE_PROJECT
-        default n
-        bool "Samsung STARQLTE CHN LDU"
-        help
-          Support for Samsung STARQLTE CHN LDU device.
-
-config MACH_STAR2QLTE_CHN_LDU
-        depends on SEC_STAR2QLTE_PROJECT
-        default n
-        bool "Samsung STAR2QLTE CHN LDU"
-        help
-          Support for Samsung STAR2QLTE CHNLDU device.
-
 config MACH_STARQLTE_DCM
         depends on SEC_STARQLTE_PROJECT
         default n
@@ -159,13 +131,6 @@ config SEC_CROWNQLTE_PROJECT
 	help
 	  Support for Samsung CROWNQLTE Project
 
-config SEC_LYKANLTE_PROJECT
-	depends on ARCH_SDM845
-	default n
-	bool "Samsung LYKANLTE Project"
-	help
-	  Support for Samsung LYKANLTE Project
-
 config MACH_CROWNQLTE_USA_SINGLE
 	depends on SEC_CROWNQLTE_PROJECT
 	default n
@@ -180,13 +145,6 @@ config MACH_CROWNQLTE_USA_OPEN
 	help
 	  Support for Samsung CROWNQLTE USA OPEN device.
 
-config MACH_CROWNQLTE_USA_LDU
-	depends on SEC_CROWNQLTE_PROJECT
-	default n
-	bool "Samsung CROWNQLTE LDU"
-	help
-	  Support for Samsung CROWNQLTE USA LDU device.
-
 config MACH_CROWNQLTE_CAN_SINGLE
 	depends on SEC_CROWNQLTE_PROJECT
 	default n
@@ -200,13 +158,6 @@ config MACH_CROWNQLTE_CHNZC
 	bool "Samsung CROWNQLTE CHN OPEN"
 	help
 	  Support for Samsung CROWNQLTE CHN OPEN device.
-
-config MACH_CROWNQLTE_CHN_LDU
-        depends on SEC_CROWNQLTE_PROJECT
-        default n
-        bool "Samsung CROWNQLTE CHN LDU"
-        help
-          Support for Samsung CROWNQLTE CHN LDU device.
 
 config MACH_CROWNQLTE_CHNZM
 	depends on SEC_CROWNQLTE_PROJECT
@@ -235,10 +186,3 @@ config MACH_CROWNQLTE_KDI
         bool "Samsung CROWNQLTE JPN KDI"
         help
           Support for Samsung CROWNQLTE JPN KDI device.
-
-config MACH_LYKANLTE_CHNZC
-        depends on SEC_LYKANLTE_PROJECT
-        default n
-        bool "Samsung LYKANLTE CHN OPEN"
-        help
-          Support for Samsung LYKANLTE CHN OPEN device.
