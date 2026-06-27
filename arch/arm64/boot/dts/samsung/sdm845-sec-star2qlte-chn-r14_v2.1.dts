@@ -25269,43 +25269,6 @@
 		};
 	};
 
-	firmware {
-		phandle = <0x586>;
-
-		android {
-			compatible = "android,firmware";
-
-			fstab {
-				compatible = "android,fstab";
-
-				vendor {
-					compatible = "android,vendor";
-					dev = "/dev/block/platform/soc/1d84000.ufshc/by-name/vendor";
-					type = "auto";
-					mnt_flags = "ro,barrier=1,discard";
-					fsmgr_flags = "wait";
-					status = "ok";
-				};
-
-				odm {
-					compatible = "android,odm";
-					dev = "/dev/block/platform/soc/1d84000.ufshc/by-name/odm";
-					type = "auto";
-					mnt_flags = "ro";
-					fsmgr_flags = "wait";
-				};
-
-				system {
-					compatible = "android,system";
-					dev = "/dev/block/platform/soc/1d84000.ufshc/by-name/system";
-					type = "auto";
-					mnt_flags = "ro";
-					fsmgr_flags = "wait";
-				};
-			};
-		};
-	};
-
 	reserved-memory {
 		#address-cells = <0x2>;
 		#size-cells = <0x2>;
