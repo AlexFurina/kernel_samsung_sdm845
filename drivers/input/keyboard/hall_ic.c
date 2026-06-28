@@ -21,6 +21,10 @@
 #include <linux/of.h>
 #include <linux/spinlock.h>
 #include <linux/wakelock.h>
+#include <linux/sec_class.h>
+
+struct device *hall_ic;
+EXPORT_SYMBOL(hall_ic);
 
 extern struct device *sec_key;
 
@@ -238,7 +242,9 @@ static int hall_probe(struct platform_device *pdev)
 	init_hall_ic_irq(input);
 
 	if (ddata->gpio_flip_cover != 0) {
-		error = device_create_file(sec_key, &dev_attr_hall_detect);
+		hall_ic = sec_device_create(0, ddata, "hall_ic");
+
+		error = device_create_file(hall_ic, &dev_attr_hall_detect);
 		if (error < 0) {
 			pr_err("Failed to create device file(%s)!, error: %d\n",
 			dev_attr_hall_detect.attr.name, error);
