@@ -25344,19 +25344,6 @@
 			phandle = <0x58d>;
 		};
 
-		tima_region@9F800000 {
-			compatible = "removed-dma-pool";
-			no-map;
-			reg = <0x0 0x9f800000 0x0 0x200000>;
-			phandle = <0x58e>;
-		};
-
-		rkp_region@9FA00000 {
-			compatible = "removed-dma-pool";
-			reg = <0x0 0x9fa00000 0x0 0xf00000>;
-			phandle = <0x58f>;
-		};
-
 		modem_shared_mem_region@BA000000 {
 			compatible = "removed-dma-pool";
 			no-map;
