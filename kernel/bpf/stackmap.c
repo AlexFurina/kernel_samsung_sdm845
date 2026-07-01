@@ -12,7 +12,7 @@
 #include "percpu_freelist.h"
 
 #define STACK_CREATE_FLAG_MASK \
-	(BPF_F_RDONLY | BPF_F_WRONLY)
+	(BPF_F_NUMA_NODE | BPF_F_RDONLY | BPF_F_WRONLY)
 
 struct stack_map_bucket {
 	struct pcpu_freelist_node fnode;
@@ -35,7 +35,8 @@ static int prealloc_elems_and_freelist(struct bpf_stack_map *smap)
 			(u64)smap->map.value_size;
 	int err;
 
-	smap->elems = bpf_map_area_alloc(elem_size * smap->map.max_entries);
+	smap->elems = bpf_map_area_alloc(elem_size * smap->map.max_entries,
+					 smap->map.numa_node);
 	if (!smap->elems)
 		return -ENOMEM;
 
@@ -81,7 +82,7 @@ static struct bpf_map *stack_map_alloc(union bpf_attr *attr)
 	if (cost >= U32_MAX - PAGE_SIZE)
 		return ERR_PTR(-E2BIG);
 
-	smap = bpf_map_area_alloc(cost);
+	smap = bpf_map_area_alloc(cost, bpf_map_attr_numa_node(attr));
 	if (!smap)
 		return ERR_PTR(-ENOMEM);
 
@@ -90,11 +91,8 @@ static struct bpf_map *stack_map_alloc(union bpf_attr *attr)
 	if (cost >= U32_MAX - PAGE_SIZE)
 		goto free_smap;
 
-	smap->map.map_type = attr->map_type;
-	smap->map.key_size = attr->key_size;
+	bpf_map_init_from_attr(&smap->map, attr);
 	smap->map.value_size = value_size;
-	smap->map.max_entries = attr->max_entries;
-	smap->map.map_flags = attr->map_flags;
 	smap->n_buckets = n_buckets;
 	smap->map.pages = round_up(cost, PAGE_SIZE) >> PAGE_SHIFT;
 
@@ -271,7 +269,7 @@ static void stack_map_free(struct bpf_map *map)
 	put_callchain_buffers();
 }
 
-static const struct bpf_map_ops stack_map_ops = {
+const struct bpf_map_ops stack_map_ops = {
 	.map_alloc = stack_map_alloc,
 	.map_free = stack_map_free,
 	.map_get_next_key = stack_map_get_next_key,
@@ -279,15 +277,3 @@ static const struct bpf_map_ops stack_map_ops = {
 	.map_update_elem = stack_map_update_elem,
 	.map_delete_elem = stack_map_delete_elem,
 };
-
-static struct bpf_map_type_list stack_map_type __read_mostly = {
-	.ops = &stack_map_ops,
-	.type = BPF_MAP_TYPE_STACK_TRACE,
-};
-
-static int __init register_stack_map(void)
-{
-	bpf_register_map_type(&stack_map_type);
-	return 0;
-}
-late_initcall(register_stack_map);
