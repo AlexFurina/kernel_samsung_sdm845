@@ -151,10 +151,6 @@ static inline void sec_debug_save_core_reg(struct sec_debug_core_t *core_reg)
 		"str x13, [x0,#0x68]\n\t"	/* x13 */
 		"str x14, [x0,#0x70]\n\t"	/* x14 */
 		"str x15, [x0,#0x78]\n\t"	/* x15 */
-#if (!defined CONFIG_RKP_CFP_ROPP) || (defined CONFIG_RKP_CFP_TEST)
-		"str x16, [x0,#0x80]\n\t"	/* x16 */
-		"str x17, [x0,#0x88]\n\t"	/* x17 */
-#endif
 		"str x18, [x0,#0x90]\n\t"	/* x18 */
 		"str x19, [x0,#0x98]\n\t"	/* x19 */
 		"str x20, [x0,#0xA0]\n\t"	/* x20 */

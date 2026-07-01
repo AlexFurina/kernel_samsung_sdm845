@@ -149,10 +149,6 @@ static void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 	unsigned long irq_stack_ptr;
 	int skip;
 
-#if (defined CONFIG_RKP_CFP_ROPP) && (defined CONFIG_RKP_CFP_TEST)
-	unsigned long value = 0x0;
-#endif
-
 	pr_debug("%s(regs = %p tsk = %p)\n", __func__, regs, tsk);
 
 	if (!tsk)
@@ -160,11 +156,6 @@ static void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 
 	if (!try_get_task_stack(tsk))
 		return;
-
-#if (defined CONFIG_RKP_CFP_ROPP) && (defined CONFIG_RKP_CFP_TEST)
-	asm volatile("mrs %0, "STR(RRMK)"\n\t" : "=r" (value));
-	printk("CFP_TEST MK= %lx RRK=%lx X17=%lx\n", value, task_thread_info(tsk)->rrk, task_thread_info(tsk)->rrk ^ value);
-#endif
 
 	/*
 	 * Switching between stacks is valid when tracing current and in

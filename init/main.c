@@ -95,31 +95,11 @@
 
 #include <linux/sec_bsp.h>
 
-#ifdef CONFIG_UH
-#include <linux/uh.h>
-#endif
-#ifdef CONFIG_UH_RKP
-#include <linux/rkp.h>
-#endif
-
-#ifdef CONFIG_RKP_CFP
-#include <linux/rkp_cfp.h>
-#endif
-
 static int kernel_init(void *);
 
 extern void init_IRQ(void);
 extern void fork_init(void);
 extern void radix_tree_init(void);
-
-#ifdef CONFIG_KNOX_KAP
-int boot_mode_security;
-EXPORT_SYMBOL(boot_mode_security);
-#endif
-#ifdef CONFIG_UH_RKP
-int rkp_support_large_memory;
-EXPORT_SYMBOL(rkp_support_large_memory);
-#endif
 
 #ifdef CONFIG_DEFERRED_INITCALLS
 extern initcall_t __deferred_initcall_start[], __deferred_initcall_end[];
@@ -569,146 +549,6 @@ static void __init mm_init(void)
 	kaiser_init();
 }
 
-#ifdef CONFIG_RKP_CFP_ROPP
-/*
- * init swapper per-thread-key and master key
- * the encryption key is changed, so need to be inlined
- */
-static inline void ropp_primary_init(void)
-{
-	unsigned long ropp_swapper_key = 0x0;
-#ifdef CONFIG_RKP_CFP_ROPP_SYSREGKEY
-#ifdef SYSREG_DEBUG
-	ropp_swapper_key = ropp_fixed_key;
-#else
-	ropp_master_key = get_random_long();
-	ropp_swapper_key = get_random_long();
-#endif
-	asm volatile(
-			"msr "STR(RRMK)", %0\n\t"
-			"mov x17, %1"
-			::"r" (ropp_master_key), "r" (ropp_swapper_key));
-	// This is necessary as some bits are clear
-	asm volatile("mrs %0, "STR(RRMK)"\n\t" : "=r" (ropp_master_key));
-	ropp_swapper_key = ropp_swapper_key ^ ropp_master_key;
-#elif defined CONFIG_RKP_CFP_ROPP_RANDKEY
-	ropp_swapper_key = get_random_long();
-	asm volatile("mov x17, %0" :: "r" (ropp_swapper_key));
-#elif defined CONFIG_RKP_CFP_ROPP_FIXKEY
-	ropp_swapper_key = ropp_fixed_key;
-	asm volatile("mov x17, %0" :: "r" (ropp_swapper_key));
-#endif
-	current_thread_info()->rrk = ropp_swapper_key;
-}
-
-static inline void ropp_primary_init_finish(void)
-{
-#ifdef CONFIG_RKP_CFP_ROPP_SYSREGKEY
-	unsigned long save_values[] = { ROPP_MAGIC,		ropp_master_key,
-		offsetof(struct thread_info, rrk),		offsetof(struct task_struct, stack),
-		offsetof(struct task_struct, tasks),		offsetof(struct task_struct, pid),
-		offsetof(struct task_struct, thread_group),	offsetof(struct task_struct, comm),
-		offsetof(struct task_struct, thread),		offsetof(struct cpu_context, fp)};
-	int i;
-
-	for (i = 0; i < 10; i++)
-		*((unsigned long *) (__phys_to_virt(ROPP_ADDR)+0x8*i)) = save_values[i];
-
-#ifndef CONFIG_RKP_CFP_TEST
-	asm volatile("mov %0, xzr" : "=r" (ropp_master_key));
-	pr_info("SYSREG, after zeroing out master key, mk=%lx\n", ropp_master_key);
-	BUG_ON(0 != ropp_master_key); //preventing compiler error
-#endif
-#endif
-}
-#endif
-
-#ifdef CONFIG_UH_RKP
-__attribute__((section(".rkp.bitmap"))) u8 rkp_pgt_bitmap_arr[RKP_PGT_BITMAP_LEN] = {0};
-__attribute__((section(".rkp.dblmap"))) u8 rkp_map_bitmap_arr[RKP_PGT_BITMAP_LEN] = {0};
-u8 rkp_started; /* 0 initialized by c standard */
-
-static void rkp_init(void)
-{
-	struct rkp_init init;
-
-	rkp_support_large_memory = 1;
-
-	init.magic = RKP_INIT_MAGIC;
-	init.vmalloc_start = VMALLOC_START;
-	init.vmalloc_end = (u64)high_memory;
-	init.init_mm_pgd = (u64)__pa(swapper_pg_dir);
-	init.id_map_pgd = (u64)__pa(idmap_pg_dir);
-	init.zero_pg_addr = __pa(empty_zero_page);
-	init.rkp_pgt_bitmap = (u64)__pa(rkp_pgt_bitmap);
-	init.rkp_dbl_bitmap = (u64)__pa(rkp_map_bitmap);
-	init.rkp_bitmap_size = RKP_PGT_BITMAP_LEN;
-#ifdef CONFIG_RKP_KDP
-	init.rkp_prot_page_size = (u64)__rkp_end_prot_page - (u64)__rkp_start_prot_page;
-#else
-	init.rkp_prot_page_size = 0;
-#endif
-	init.no_fimc_verify = 0;
-	init.fimc_phys_addr = 0;
-	init.zero_pg_addr = (u64)__pa(empty_zero_page);
-	init._text = (u64)_text;
-	init._etext = (u64)_etext;
-	//init.physmap_addr
-	init._srodata = (u64)__start_rodata;
-	init._erodata = (u64)__end_rodata;
-	init.large_memory = rkp_support_large_memory;
-
-	uh_call(UH_APP_RKP, RKP_START, (u64)&init, (u64)kimage_voffset, (u64)max_pfn, (u64)memstart_addr);
-	rkp_started = 1;
-}
-#endif
-#ifdef CONFIG_RKP_KDP
-#define VERITY_PARAM_LENGTH 20
-static char verifiedbootstate[VERITY_PARAM_LENGTH];
-RKP_RO_AREA int __check_verifiedboot = 0;
-static int __init verifiedboot_state_setup(char *str)
-{
-	strlcpy(verifiedbootstate, str, sizeof(verifiedbootstate));
-
-	if (!strncmp(verifiedbootstate, "orange", sizeof("orange")))
-		__check_verifiedboot = 1;
-
-	return 0;
-}
-__setup("androidboot.verifiedbootstate=", verifiedboot_state_setup);
-
-
-void kdp_init(void)
-{
-	kdp_init_t cred;
-
-	cred.credSize 	= sizeof(struct cred);
-	cred.sp_size	= rkp_get_task_sec_size();
-	cred.pgd_mm 	= offsetof(struct mm_struct,pgd);
-	cred.uid_cred	= offsetof(struct cred,uid);
-	cred.euid_cred	= offsetof(struct cred,euid);
-	cred.gid_cred	= offsetof(struct cred,gid);
-	cred.egid_cred	= offsetof(struct cred,egid);
-
-	cred.bp_pgd_cred 	= offsetof(struct cred,bp_pgd);
-	cred.bp_task_cred 	= offsetof(struct cred,bp_task);
-	cred.type_cred 		= offsetof(struct cred,type);
-	cred.security_cred 	= offsetof(struct cred,security);
-	cred.usage_cred 	= offsetof(struct cred,use_cnt);
-
-	cred.cred_task  	= offsetof(struct task_struct,cred);
-	cred.mm_task 		= offsetof(struct task_struct,mm);
-	cred.pid_task		= offsetof(struct task_struct,pid);
-	cred.rp_task		= offsetof(struct task_struct,real_parent);
-	cred.comm_task 		= offsetof(struct task_struct,comm);
-
-	cred.bp_cred_secptr 	= rkp_get_offset_bp_cred();
-	cred.verifiedbootstate = (u64)verifiedbootstate;
-
-	uh_call(UH_APP_RKP, 0x40, (u64)&cred, 0, 0, 0);
-}
-#endif /*CONFIG_RKP_KDP*/
-
 asmlinkage __visible void __init start_kernel(void)
 {
 	char *command_line;
@@ -799,19 +639,6 @@ asmlinkage __visible void __init start_kernel(void)
 	sort_main_extable();
 	trap_init();
 	mm_init();
-#ifdef CONFIG_UH_RKP
-	uh_call(UH_APP_INIT, 0, 0, 0, 0, 0);
-#endif
-#ifdef CONFIG_UH_RKP
-	rkp_init();
-#ifdef CONFIG_RKP_KDP
-	rkp_cred_enable = 1;
-#endif /*CONFIG_RKP_KDP*/
-#endif
-
-#ifdef CONFIG_RKP_CFP_ROPP
-	ropp_primary_init();
-#endif
 
 	/*
 	 * Set up the scheduler prior starting any interrupts (such as the
@@ -913,14 +740,6 @@ asmlinkage __visible void __init start_kernel(void)
 	init_espfix_bsp();
 #endif
 	thread_stack_cache_init();
-#ifdef CONFIG_RKP_KDP
-	if (rkp_cred_enable) 
-		kdp_init();
-#endif /*CONFIG_RKP_KDP*/
-
-#ifdef CONFIG_RKP_CFP_ROPP
-	ropp_primary_init_finish();
-#endif
 	cred_init();
 	fork_init();
 	proc_caches_init();
