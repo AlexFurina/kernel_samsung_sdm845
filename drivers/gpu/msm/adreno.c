@@ -2205,7 +2205,6 @@ static int adreno_stop(struct kgsl_device *device)
 		 * MMU later. Early return in adreno_stop function
 		 * will result in kernel panic in adreno_start
 		 */
-		BUG_ON(1);
 		error = -EINVAL;
 	}
 
@@ -3068,6 +3067,9 @@ int adreno_spin_idle(struct adreno_device *adreno_dev, unsigned int timeout)
 
 		if (adreno_isidle(KGSL_DEVICE(adreno_dev)))
 			return 0;
+
+		/* relax tight loop */
+		cond_resched();
 
 	} while (time_before(jiffies, wait));
 

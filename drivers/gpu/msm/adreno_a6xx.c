@@ -2286,8 +2286,7 @@ static int a6xx_complete_rpmh_votes(struct kgsl_device *device)
 
 static int a6xx_gmu_suspend(struct kgsl_device *device)
 {
-	/* Max GX clients on A6xx is 2: GMU and KMD */
-	int ret = 0, max_client_num = 2;
+	int ret = 0;
 	struct gmu_device *gmu = &device->gmu;
 	struct adreno_device *adreno_dev = ADRENO_DEVICE(device);
 
@@ -2307,7 +2306,7 @@ static int a6xx_gmu_suspend(struct kgsl_device *device)
 	a6xx_complete_rpmh_votes(device);
 
 	if (gmu->gx_gdsc) {
-		if (regulator_is_enabled(gmu->gx_gdsc)) {
+		if (a6xx_gx_is_on(adreno_dev)) {
 			/* Switch gx gdsc control from GMU to CPU
 			 * force non-zero reference count in clk driver
 			 * so next disable call will turn
@@ -2316,18 +2315,16 @@ static int a6xx_gmu_suspend(struct kgsl_device *device)
 			ret = regulator_enable(gmu->gx_gdsc);
 			if (ret)
 				dev_err(&gmu->pdev->dev,
-					"suspend fail: gx enable\n");
+					"suspend fail: gx enable %d\n", ret);
 
-			while ((max_client_num)) {
-				ret = regulator_disable(gmu->gx_gdsc);
-				if (!regulator_is_enabled(gmu->gx_gdsc))
-					break;
-				max_client_num -= 1;
-			}
-
-			if (!max_client_num)
+			ret = regulator_disable(gmu->gx_gdsc);
+			if (ret)
 				dev_err(&gmu->pdev->dev,
-					"suspend fail: cannot disable gx\n");
+					"suspend fail: gx disable %d\n", ret);
+
+			if (a6xx_gx_is_on(adreno_dev))
+				dev_err(&gmu->pdev->dev,
+					"suspend fail: gx is stuck on\n");
 		}
 	}
 
@@ -2389,7 +2386,7 @@ static int a6xx_rpmh_gpu_pwrctrl(struct adreno_device *adreno_dev,
 static int a6xx_reset(struct kgsl_device *device, int fault)
 {
 	struct adreno_device *adreno_dev = ADRENO_DEVICE(device);
-	int ret = -EINVAL;
+	int ret;
 	int i = 0;
 
 	/* Use the regular reset sequence for No GMU */
@@ -2435,14 +2432,7 @@ static int a6xx_reset(struct kgsl_device *device, int fault)
 		/* since device is officially off now clear start bit */
 		clear_bit(ADRENO_DEVICE_STARTED, &adreno_dev->priv);
 
-		/* Keep trying to start the device until it works */
-		for (i = 0; i < NUM_TIMES_RESET_RETRY; i++) {
-			ret = adreno_start(device, 0);
-			if (!ret)
-				break;
-
-			msleep(20);
-		}
+		ret = adreno_start(device, 0);
 	}
 
 	clear_bit(ADRENO_DEVICE_HARD_RESET, &adreno_dev->priv);
@@ -2450,20 +2440,16 @@ static int a6xx_reset(struct kgsl_device *device, int fault)
 	if (ret)
 		return ret;
 
-	if (i != 0)
-		KGSL_DRV_WARN(device, "Device hard reset tried %d tries\n", i);
+	kgsl_pwrctrl_change_state(device, KGSL_STATE_ACTIVE);
 
 	/*
-	 * If active_cnt is non-zero then the system was active before
-	 * going into a reset - put it back in that state
+	 * If active_cnt is zero, there is no need to keep the GPU active. So,
+	 * we should transition to SLUMBER.
 	 */
+	if (!atomic_read(&device->active_cnt))
+		kgsl_pwrctrl_change_state(device, KGSL_STATE_SLUMBER);
 
-	if (atomic_read(&device->active_cnt))
-		kgsl_pwrctrl_change_state(device, KGSL_STATE_ACTIVE);
-	else
-		kgsl_pwrctrl_change_state(device, KGSL_STATE_NAP);
-
-	return ret;
+	return 0;
 }
 
 static void a6xx_cp_hw_err_callback(struct adreno_device *adreno_dev, int bit)
