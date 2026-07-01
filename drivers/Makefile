@@ -208,9 +208,6 @@ obj-y              		+= motor/
 # CCIC
 obj-y	+= ccic/
 
-# uH
-obj-$(CONFIG_UH)        += uh/
-
 # CONFIG_SEC_DEBUG
 obj-y				+= debug/
 
