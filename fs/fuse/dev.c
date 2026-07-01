@@ -7,7 +7,6 @@
 */
 
 #include "fuse_i.h"
-#include "fuse_passthrough.h"
 
 #include <linux/init.h>
 #include <linux/module.h>
@@ -573,14 +572,9 @@ ssize_t fuse_simple_request(struct fuse_conn *fc, struct fuse_args *args)
 	       args->out.numargs * sizeof(struct fuse_arg));
 	fuse_request_send(fc, req);
 	ret = req->out.h.error;
-	if (!ret) {
-		if (args->out.argvar) {
-			WARN_ON(args->out.numargs != 1);
-			ret = req->out.args[0].size;
-		}
-
-		if (req->passthrough_filp != NULL)
-			args->out.passthrough_filp = req->passthrough_filp;
+	if (!ret && args->out.argvar) {
+		BUG_ON(args->out.numargs != 1);
+		ret = req->out.args[0].size;
 	}
 	fuse_put_request(fc, req);
 
@@ -1002,7 +996,17 @@ static int fuse_copy_page(struct fuse_copy_state *cs, struct page **pagep,
 
 	while (count) {
 		if (cs->write && cs->pipebufs && page) {
-			return fuse_ref_page(cs, page, offset, count);
+			/*
+			 * Can't control lifetime of pipe buffers, so always
+			 * copy user pages.
+			 */
+			if (cs->req->user_pages) {
+				err = fuse_copy_fill(cs);
+				if (err)
+					return err;
+			} else {
+				return fuse_ref_page(cs, page, offset, count);
+			}
 		} else if (!cs->len) {
 			if (cs->move_pages && page &&
 			    offset == 0 && count == PAGE_SIZE) {
@@ -1950,9 +1954,6 @@ static ssize_t fuse_dev_do_write(struct fuse_dev *fud,
 	}
 	fuse_copy_finish(cs);
 
-	fuse_setup_passthrough(fc, req);
-
-
 	spin_lock(&fpq->lock);
 	clear_bit(FR_LOCKED, &req->flags);
 	if (!fpq->connected)
@@ -2213,9 +2214,9 @@ EXPORT_SYMBOL_GPL(fuse_abort_conn);
 
 void fuse_wait_aborted(struct fuse_conn *fc)
 {
-        /* matches implicit memory barrier in fuse_drop_waiting() */
-        smp_mb();
-        fuse_wait_event(fc->blocked_waitq, atomic_read(&fc->num_waiting) == 0);
+	/* matches implicit memory barrier in fuse_drop_waiting() */
+	smp_mb();
+	wait_event(fc->blocked_waitq, atomic_read(&fc->num_waiting) == 0);
 }
 
 int fuse_dev_release(struct inode *inode, struct file *file)
