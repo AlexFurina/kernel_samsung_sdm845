@@ -24,11 +24,9 @@
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/backing-dev.h>
-
 #include "ext4_jbd2.h"
 #include "xattr.h"
 #include "acl.h"
-//#include "ext4_ice.h"
 
 static struct kmem_cache *io_end_cachep;
 
@@ -66,7 +64,7 @@ static void ext4_finish_bio(struct bio *bio)
 
 	bio_for_each_segment_all(bvec, bio, i) {
 		struct page *page = bvec->bv_page;
-#ifdef CONFIG_FS_ENCRYPTION
+#ifdef CONFIG_EXT4_FS_ENCRYPTION
 		struct page *data_page = NULL;
 #endif
 		struct buffer_head *bh, *head;
@@ -78,7 +76,7 @@ static void ext4_finish_bio(struct bio *bio)
 		if (!page)
 			continue;
 
-#ifdef CONFIG_FS_ENCRYPTION
+#ifdef CONFIG_EXT4_FS_ENCRYPTION
 		if (!page->mapping) {
 			/* The bounce data pages are unmapped. */
 			data_page = page;
@@ -111,7 +109,7 @@ static void ext4_finish_bio(struct bio *bio)
 		bit_spin_unlock(BH_Uptodate_Lock, &head->b_state);
 		local_irq_restore(flags);
 		if (!under_io) {
-#ifdef CONFIG_FS_ENCRYPTION
+#ifdef CONFIG_EXT4_FS_ENCRYPTION
 			if (data_page)
 				fscrypt_restore_control_page(data_page);
 #endif
@@ -341,18 +339,37 @@ void ext4_io_submit(struct ext4_io_submit *io)
 	if (bio) {
 		int io_op_flags = io->io_wbc->sync_mode == WB_SYNC_ALL ?
 				  WRITE_SYNC : 0;
-		if (io->io_flags & EXT4_IO_ENCRYPTED)
-			io_op_flags |= REQ_NOENCRYPT;
 		bio_set_op_attrs(io->io_bio, REQ_OP_WRITE, io_op_flags);
+		if (ext4_encrypted_inode(io->io_end->inode) &&
+				S_ISREG(io->io_end->inode->i_mode))
+			fscrypt_set_bio(io->io_end->inode, io->io_bio, 0);
 		submit_bio(io->io_bio);
 	}
 	io->io_bio = NULL;
 }
 
+#ifdef CONFIG_DDAR
+int ext4_io_submit_to_dd(struct inode *inode, struct ext4_io_submit *io)
+{
+	struct bio *bio = io->io_bio;
+
+	if (!fscrypt_dd_encrypted_inode(inode))
+		return -EOPNOTSUPP;
+
+	if (bio) {
+		int io_op_flags = io->io_wbc->sync_mode == WB_SYNC_ALL ?
+				  REQ_SYNC : 0;
+		bio_set_op_attrs(io->io_bio, REQ_OP_WRITE, io_op_flags);
+		fscrypt_dd_submit_bio(inode, io->io_bio);
+	}
+	io->io_bio = NULL;
+	return 0;
+}
+#endif
+
 void ext4_io_submit_init(struct ext4_io_submit *io,
 			 struct writeback_control *wbc)
 {
-	io->io_flags = 0;
 	io->io_wbc = wbc;
 	io->io_bio = NULL;
 	io->io_end = NULL;
@@ -385,7 +402,10 @@ static int io_submit_add_bh(struct ext4_io_submit *io,
 
 	if (io->io_bio && bh->b_blocknr != io->io_next_block) {
 submit_and_retry:
-		ext4_io_submit(io);
+// CONFIG_DDAR [
+		if (ext4_io_submit_to_dd(inode, io) == -EOPNOTSUPP)
+			ext4_io_submit(io);
+// ] CONFIG_DDAR
 	}
 	if (io->io_bio == NULL) {
 		ret = io_submit_init_bio(io, bh);
@@ -455,7 +475,10 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 			if (!buffer_mapped(bh))
 				clear_buffer_dirty(bh);
 			if (io->io_bio)
-				ext4_io_submit(io);
+// CONFIG_DDAR [
+				if (ext4_io_submit_to_dd(inode, io) == -EOPNOTSUPP)
+					ext4_io_submit(io);
+// ] CONFIG_DDAR
 			continue;
 		}
 		if (buffer_new(bh)) {
@@ -468,26 +491,39 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 
 	bh = head = page_buffers(page);
 
-	if (IS_ENCRYPTED(inode) && S_ISREG(inode->i_mode) && nr_to_submit) {
+	if (ext4_encrypted_inode(inode) && S_ISREG(inode->i_mode) &&
+	    nr_to_submit && !fscrypt_disk_encrypted(inode)) {
 		gfp_t gfp_flags = GFP_NOFS;
 
+		/*
+		 * Since bounce page allocation uses a mempool, we can only use
+		 * a waiting mask (i.e. request guaranteed allocation) on the
+		 * first page of the bio.  Otherwise it can deadlock.
+		 */
+		if (io->io_bio)
+			gfp_flags = GFP_NOWAIT | __GFP_NOWARN;
 	retry_encrypt:
-		if (!fscrypt_using_hardware_encryption(inode)) {
 		data_page = fscrypt_encrypt_page(inode, page, PAGE_SIZE, 0,
 						page->index, gfp_flags);
-			if (IS_ERR(data_page)) {
-				ret = PTR_ERR(data_page);
-				if (ret == -ENOMEM && wbc->sync_mode == WB_SYNC_ALL) {
-					if (io->io_bio) {
+		if (IS_ERR(data_page)) {
+			ret = PTR_ERR(data_page);
+			if (ret == -ENOMEM &&
+			    (io->io_bio || wbc->sync_mode == WB_SYNC_ALL)) {
+				gfp_flags = GFP_NOFS;
+				if (io->io_bio)
+// CONFIG_DDAR [
+				{
+					if (ext4_io_submit_to_dd(inode, io) == -EOPNOTSUPP)
 						ext4_io_submit(io);
-						congestion_wait(BLK_RW_ASYNC, HZ/50);
-					}
-					gfp_flags |= __GFP_NOFAIL;
-					goto retry_encrypt;
 				}
-				data_page = NULL;
-				goto out;
+// ] CONFIG_DDAR
+				else
+					gfp_flags |= __GFP_NOFAIL;
+				congestion_wait(BLK_RW_ASYNC, HZ/50);
+				goto retry_encrypt;
 			}
+			data_page = NULL;
+			goto out;
 		}
 	}
 
@@ -495,8 +531,6 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 	do {
 		if (!buffer_async_write(bh))
 			continue;
-		if (data_page)
-			io->io_flags |= EXT4_IO_ENCRYPTED;
 		ret = io_submit_add_bh(io, inode,
 				       data_page ? data_page : page, bh);
 		if (ret) {

@@ -109,7 +109,8 @@ struct f2fs_super_block {
 	struct f2fs_device devs[MAX_DEVICES];	/* device list */
 	__le32 qf_ino[F2FS_MAX_QUOTAS];	/* quota inode numbers */
 	__u8 hot_ext_count;		/* # of hot file extension */
-	__u8 reserved[310];		/* valid reserved region */
+	__u8 reserved[246];		/* valid reserved region */
+	__u8 mount_opts[64];            /* default mount option for SEC */
 	__le32 crc;			/* checksum of superblock */
 } __packed;
 
@@ -164,10 +165,6 @@ struct f2fs_checkpoint {
 	unsigned char sit_nat_version_bitmap[1];
 } __packed;
 
-#define CP_CHKSUM_OFFSET	4092	/* default chksum offset in checkpoint */
-#define CP_MIN_CHKSUM_OFFSET						\
-	(offsetof(struct f2fs_checkpoint, sit_nat_version_bitmap))
-
 /*
  * For orphan inode management
  */
@@ -202,12 +199,11 @@ struct f2fs_extent {
 					get_extra_isize(inode))
 #define DEF_NIDS_PER_INODE	5	/* Node IDs in an Inode */
 #define ADDRS_PER_INODE(inode)	addrs_per_inode(inode)
-#define DEF_ADDRS_PER_BLOCK	1018	/* Address Pointers in a Direct Block */
-#define ADDRS_PER_BLOCK(inode)	addrs_per_block(inode)
+#define ADDRS_PER_BLOCK		1018	/* Address Pointers in a Direct Block */
 #define NIDS_PER_BLOCK		1018	/* Node IDs in an Indirect Block */
 
 #define ADDRS_PER_PAGE(page, inode)	\
-	(IS_INODE(page) ? ADDRS_PER_INODE(inode) : ADDRS_PER_BLOCK(inode))
+	(IS_INODE(page) ? ADDRS_PER_INODE(inode) : ADDRS_PER_BLOCK)
 
 #define	NODE_DIR1_BLOCK		(DEF_ADDRS_PER_INODE + 1)
 #define	NODE_DIR2_BLOCK		(DEF_ADDRS_PER_INODE + 2)
@@ -272,7 +268,7 @@ struct f2fs_inode {
 } __packed;
 
 struct direct_node {
-	__le32 addr[DEF_ADDRS_PER_BLOCK];	/* array of data block address */
+	__le32 addr[ADDRS_PER_BLOCK];	/* array of data block address */
 } __packed;
 
 struct indirect_node {
@@ -547,5 +543,18 @@ enum {
 #define S_SHIFT 12
 
 #define	F2FS_DEF_PROJID		0	/* default project ID */
+
+#define	F2FS_SEC_EXTRA_FSCK_MAGIC	0xF5CE45EC
+struct f2fs_sb_extra_flag_blk {
+	__le32 need_fsck;
+	__le32 spo_counter;
+	__le64 fsck_read_bytes;
+	__le64 fsck_written_bytes;
+	__le64 fsck_elapsed_time;
+	__le32 fsck_exit_code;
+	__le32 valid_node_count;
+	__le32 valid_inode_count;
+	__u8   rsvd[4052];
+} __packed;
 
 #endif  /* _LINUX_F2FS_FS_H */

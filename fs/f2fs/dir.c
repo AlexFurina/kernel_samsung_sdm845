@@ -385,7 +385,7 @@ struct page *f2fs_init_inode_metadata(struct inode *inode, struct inode *dir,
 		if (err)
 			goto put_error;
 
-		if ((IS_ENCRYPTED(dir) || dummy_encrypt) &&
+		if ((f2fs_encrypted_inode(dir) || dummy_encrypt) &&
 					f2fs_may_encrypt(inode)) {
 			err = fscrypt_inherit_context(dir, inode, page, false);
 			if (err)
@@ -399,7 +399,7 @@ struct page *f2fs_init_inode_metadata(struct inode *inode, struct inode *dir,
 
 	if (new_name) {
 		init_dent_inode(new_name, page);
-		if (IS_ENCRYPTED(dir))
+		if (f2fs_encrypted_inode(dir))
 			file_set_enc_name(inode);
 	}
 
@@ -824,7 +824,7 @@ int f2fs_fill_dentries(struct dir_context *ctx, struct f2fs_dentry_ptr *d,
 			goto out;
 		}
 
-		if (IS_ENCRYPTED(d->inode)) {
+		if (f2fs_encrypted_inode(d->inode)) {
 			int save_len = fstr->len;
 
 			err = fscrypt_fname_disk_to_usr(d->inode,
@@ -867,7 +867,7 @@ static int f2fs_readdir(struct file *file, struct dir_context *ctx)
 	struct fscrypt_str fstr = FSTR_INIT(NULL, 0);
 	int err = 0;
 
-	if (IS_ENCRYPTED(inode)) {
+	if (f2fs_encrypted_inode(inode)) {
 		err = fscrypt_get_encryption_info(inode);
 		if (err && err != -ENOKEY)
 			goto out;
@@ -917,6 +917,14 @@ static int f2fs_readdir(struct file *file, struct dir_context *ctx)
 		err = f2fs_fill_dentries(ctx, &d,
 				n * NR_DENTRY_IN_BLOCK, &fstr);
 		if (err) {
+			struct f2fs_sb_info *sbi = F2FS_P_SB(dentry_page);
+
+			if (err == -EINVAL) {
+				print_block_data(sbi->sb, n,
+					page_address(dentry_page), 0, F2FS_BLKSIZE);
+				f2fs_bug_on(sbi, 1);
+			}
+
 			f2fs_put_page(dentry_page, 0);
 			break;
 		}
@@ -932,7 +940,7 @@ out:
 
 static int f2fs_dir_open(struct inode *inode, struct file *filp)
 {
-	if (IS_ENCRYPTED(inode))
+	if (f2fs_encrypted_inode(inode))
 		return fscrypt_get_encryption_info(inode) ? -EACCES : 0;
 	return 0;
 }

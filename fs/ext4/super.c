@@ -53,6 +53,9 @@
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/ext4.h>
+#ifdef CONFIG_FSCRYPT_SDP
+#include <linux/fscrypto_sdp_cache.h>
+#endif
 
 void (*ufs_debug_func)(void *) = NULL;
 
@@ -69,6 +72,7 @@ static void ext4_mark_recovery_complete(struct super_block *sb,
 static void ext4_clear_journal_err(struct super_block *sb,
 				   struct ext4_super_block *es);
 static int ext4_sync_fs(struct super_block *sb, int wait);
+static void ext4_umount_end(struct super_block *sb, int flags);
 static int ext4_remount(struct super_block *sb, int *flags, char *data);
 static int ext4_statfs(struct dentry *dentry, struct kstatfs *buf);
 static int ext4_unfreeze(struct super_block *sb);
@@ -393,6 +397,7 @@ static void ext4_journal_commit_callback(journal_t *journal, transaction_t *txn)
 	spin_unlock(&sbi->s_md_lock);
 }
 
+/* @fs.sec -- ed6287f38b4c758f36cd7864940cdbd81e26efee -- */
 extern int ignore_fs_panic;
 
 /* Deal with the reporting of failure conditions on a filesystem such as
@@ -410,6 +415,7 @@ extern int ignore_fs_panic;
  * that error until we've noted it down and cleared it.
  */
 
+/* @fs.sec -- 10e386db3959e3c02220744400a053e7807e07ad -- */
 static void ext4_handle_error(struct super_block *sb, char *buf)
 {
 	if (sb_rdonly(sb))
@@ -1036,6 +1042,12 @@ static struct inode *ext4_alloc_inode(struct super_block *sb)
 static int ext4_drop_inode(struct inode *inode)
 {
 	int drop = generic_drop_inode(inode);
+#ifdef CONFIG_FSCRYPT_SDP
+	if (!drop && fscrypt_sdp_is_locked_sensitive_inode(inode)) {
+		fscrypt_sdp_drop_inode(inode);
+		drop = 1;
+	}
+#endif
 
 	trace_ext4_drop_inode(inode, drop);
 	return drop;
@@ -1174,7 +1186,7 @@ static int bdev_try_to_free_page(struct super_block *sb, struct page *page,
 	return try_to_free_buffers(page);
 }
 
-#ifdef CONFIG_FS_ENCRYPTION
+#ifdef CONFIG_EXT4_FS_ENCRYPTION
 static int ext4_get_context(struct inode *inode, void *ctx, size_t len)
 {
 	return ext4_xattr_get(inode, EXT4_XATTR_INDEX_ENCRYPTION,
@@ -1249,6 +1261,18 @@ retry:
 	return res;
 }
 
+#if defined(CONFIG_DDAR) || defined(CONFIG_FSCRYPT_SDP)
+static inline int ext4_get_knox_context(struct inode *inode,
+		const char *name, void *buffer, size_t buffer_size) {
+	return ext4_xattr_get(inode, EXT4_XATTR_INDEX_ENCRYPTION,	name, buffer, buffer_size);
+}
+static inline int ext4_set_knox_context(struct inode *inode,
+		const char *name, const void *value, size_t size, void *fs_data) {
+	return ext4_xattr_set(inode, EXT4_XATTR_INDEX_ENCRYPTION,
+			name ? name : EXT4_XATTR_NAME_ENCRYPTION_CONTEXT, value, size, 0);
+}
+#endif
+
 static bool ext4_dummy_context(struct inode *inode)
 {
 	return DUMMY_ENCRYPTION_ENABLED(EXT4_SB(inode->i_sb));
@@ -1258,6 +1282,10 @@ static const struct fscrypt_operations ext4_cryptops = {
 	.key_prefix		= "ext4:",
 	.get_context		= ext4_get_context,
 	.set_context		= ext4_set_context,
+#if defined(CONFIG_DDAR) || defined(CONFIG_FSCRYPT_SDP)
+	.get_knox_context	= ext4_get_knox_context,
+	.set_knox_context	= ext4_set_knox_context,
+#endif
 	.dummy_context		= ext4_dummy_context,
 	.empty_dir		= ext4_empty_dir,
 	.max_namelen		= EXT4_NAME_LEN,
@@ -1328,6 +1356,7 @@ static const struct super_operations ext4_sops = {
 	.freeze_fs	= ext4_freeze,
 	.unfreeze_fs	= ext4_unfreeze,
 	.statfs		= ext4_statfs,
+	.umount_end	= ext4_umount_end,
 	.remount_fs	= ext4_remount,
 	.show_options	= ext4_show_options,
 #ifdef CONFIG_QUOTA
@@ -1835,7 +1864,7 @@ static int handle_mount_opt(struct super_block *sb, char *opt, int token,
 		*journal_ioprio =
 			IOPRIO_PRIO_VALUE(IOPRIO_CLASS_BE, arg);
 	} else if (token == Opt_test_dummy_encryption) {
-#ifdef CONFIG_FS_ENCRYPTION
+#ifdef CONFIG_EXT4_FS_ENCRYPTION
 		sbi->s_mount_flags |= EXT4_MF_TEST_DUMMY_ENCRYPTION;
 		ext4_msg(sb, KERN_WARNING,
 			 "Test dummy encryption mode enabled");
@@ -3723,6 +3752,10 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_flags = (sb->s_flags & ~MS_POSIXACL) |
 		(test_opt(sb, POSIX_ACL) ? MS_POSIXACL : 0);
 
+#ifdef CONFIG_FIVE
+	sb->s_flags |= MS_I_VERSION;
+#endif
+
 	if (le32_to_cpu(es->s_rev_level) == EXT4_GOOD_OLD_REV &&
 	    (ext4_has_compat_features(sb) ||
 	     ext4_has_ro_compat_features(sb) ||
@@ -4102,7 +4135,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_op = &ext4_sops;
 	sb->s_export_op = &ext4_export_ops;
 	sb->s_xattr = ext4_xattr_handlers;
-#ifdef CONFIG_FS_ENCRYPTION
+#ifdef CONFIG_EXT4_FS_ENCRYPTION
 	sb->s_cop = &ext4_cryptops;
 #endif
 #ifdef CONFIG_QUOTA
@@ -4229,6 +4262,11 @@ no_journal:
 		goto failed_mount_wq;
 	}
 
+
+	/* Remove to check DUMMY_ENCRYTIION_ENABLE to set ext4_set_feature_encrypt
+	 * even if dummy encryption isn't enabled (HACK patch)
+	 * if (DUMMY_ENCRYPTION_ENABLED(sbi) && !(sb->s_flags & MS_RDONLY) &&
+	 */
 	if (DUMMY_ENCRYPTION_ENABLED(sbi) && !sb_rdonly(sb) &&
 			!ext4_has_feature_encrypt(sb)) {
 		ext4_set_feature_encrypt(sb);
@@ -4261,13 +4299,7 @@ no_journal:
 				ext4_r_blocks_count(es) >> sbi->s_cluster_bits);
 	}
 
-	if (ext4_sec_r_blocks_count(es))
-		ext4_msg(sb, KERN_INFO, "SEC reserved blocks %llu",
-				ext4_sec_r_blocks_count(es) >>
-				sbi->s_cluster_bits);
-
-	if (le32_to_cpu(es->s_sec_magic) == EXT4_SEC_DATA_MAGIC ||
-			strncmp(es->s_volume_name, "data", 4) == 0) {
+	if (strncmp(es->s_volume_name, "data", 4) == 0) {
 		sbi->s_r_inodes_count = EXT4_DEF_RESERVE_INODE;
 		ext4_msg(sb, KERN_INFO, "Reserve inodes (%d/%u)",
 			EXT4_DEF_RESERVE_INODE,
@@ -4786,19 +4818,19 @@ static int ext4_commit_super(struct super_block *sb, int sync)
 	if (block_device_ejected(sb))
 		return -ENODEV;
 
-	/*
-	 * The superblock bh should be mapped, but it might not be if the
-	 * device was hot-removed. Not much we can do but fail the I/O.
-	 */
-	if (!buffer_mapped(sbh))
-		return error;
-
 	if (unlikely(le16_to_cpu(es->s_magic) != EXT4_SUPER_MAGIC)) {
 		print_bh(sb, sbh, 0, EXT4_BLOCK_SIZE(sb));
 		if (test_opt(sb, ERRORS_PANIC))
 			panic("EXT4(Can not find EXT4_SUPER_MAGIC");
 		return -EIO;
 	}
+
+	/*
+	 * The superblock bh should be mapped, but it might not be if the
+	 * device was hot-removed. Not much we can do but fail the I/O.
+	 */
+	if (!buffer_mapped(sbh))
+		return error;
 
 	/*
 	 * If the file system is mounted read-only, don't update the
@@ -5063,6 +5095,25 @@ struct ext4_mount_options {
 	char *s_qf_names[EXT4_MAXQUOTAS];
 #endif
 };
+
+static void ext4_umount_end(struct super_block *sb, int flags)
+{
+	/*
+	 * this is called at the end of umount(2). If there is an unclosed
+	 * namespace, ext4 won't do put_super() which triggers fsck in the
+	 * next boot.
+	 */
+	if ((flags & MNT_FORCE) || atomic_read(&sb->s_active) > 1) {
+		ext4_msg(sb, KERN_ERR,
+			"errors=remount-ro for active namespaces on umount %x",
+						flags);
+		clear_opt(sb, ERRORS_PANIC);
+		set_opt(sb, ERRORS_RO);
+		/* to write the latest s_kbytes_written */
+		if (!(sb->s_flags & MS_RDONLY))
+			ext4_commit_super(sb, 1);
+	}
+}
 
 static int ext4_remount(struct super_block *sb, int *flags, char *data)
 {
@@ -5376,10 +5427,8 @@ static int ext4_statfs(struct dentry *dentry, struct kstatfs *buf)
 	/* prevent underflow in case that few free space is available */
 	buf->f_bfree = EXT4_C2B(sbi, max_t(s64, bfree, 0));
 	buf->f_bavail = buf->f_bfree -
-			(ext4_r_blocks_count(es) + resv_blocks +
-			 ext4_sec_r_blocks_count(es));
-	if (buf->f_bfree < (ext4_r_blocks_count(es) + resv_blocks +
-				ext4_sec_r_blocks_count(es)))
+			(ext4_r_blocks_count(es) + resv_blocks);
+	if (buf->f_bfree < (ext4_r_blocks_count(es) + resv_blocks))
 		buf->f_bavail = 0;
 	buf->f_files = le32_to_cpu(es->s_inodes_count);
 	buf->f_ffree = percpu_counter_sum_positive(&sbi->s_freeinodes_counter);
@@ -5783,17 +5832,14 @@ static int ext4_get_next_id(struct super_block *sb, struct kqid *qid)
 
 void print_iloc_info(struct super_block *sb, struct ext4_iloc iloc)
 {
-	/* for debugging, woojoong.lee */
 	printk(KERN_ERR "iloc info, offset : %lu,", iloc.offset);
 	printk(KERN_ERR " group# : %u\n", iloc.block_group);
 	printk(KERN_ERR "sb info, inodes per group : %lu,",
 			EXT4_SB(sb)->s_inodes_per_group);
 	printk(KERN_ERR " inode size : %d\n", EXT4_SB(sb)->s_inode_size);
 	print_bh(sb, iloc.bh, 0, EXT4_BLOCK_SIZE(sb));
-	/* end */
 }
 
-/* for debugging, sangwoo2.lee */
 void print_bh(struct super_block *sb, struct buffer_head *bh
 		, int start, int len)
 {
@@ -5801,16 +5847,16 @@ void print_bh(struct super_block *sb, struct buffer_head *bh
 		return;
 
 	if (bh) {
+		struct ext4_sb_info *sbi = EXT4_SB(sb);
+
 		printk(KERN_ERR " print_bh: bh %p,"
 				" bh->b_size %lu, bh->b_data %p\n",
 				(void *) bh, (long unsigned int) bh->b_size,
 				(void *) bh->b_data);
 		print_block_data(sb, bh->b_blocknr, bh->b_data, start, len);
 		/* Debugging for FDE device */
-		if (le32_to_cpu(EXT4_SB(sb)->s_es->s_sec_magic)
-				== EXT4_SEC_DATA_MAGIC ||
-				strncmp(EXT4_SB(sb)->s_es->s_volume_name,
-					"data", 4) == 0) {
+		if (strnlen(sbi->s_es->s_volume_name, 16) == strlen("data") &&
+		    strncmp(sbi->s_es->s_volume_name, "data", strlen("data")) == 0) {
 			lock_buffer(bh);
 			bh->b_end_io = end_buffer_read_sync;
 			get_bh(bh);
@@ -5876,7 +5922,6 @@ void print_block_data(struct super_block *sb, sector_t blocknr,
 	}
 	printk(KERN_ERR "-------------------------------------------------\n");
 }
-/* for debugging */
 
 static struct dentry *ext4_mount(struct file_system_type *fs_type, int flags,
 		       const char *dev_name, void *data)

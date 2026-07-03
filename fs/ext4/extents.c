@@ -487,6 +487,7 @@ ext4_ext_show_eh(struct inode *inode, struct ext4_extent_header *eh)
 	}
 }
 
+/* @fs.sec -- a86ca6a359e99cc76c71bf7f3a0f0a63cf0c8799 -- */
 static int __ext4_ext_check(const char *function, unsigned int line,
 			    struct inode *inode, struct ext4_extent_header *eh,
 			    int depth, ext4_fsblk_t pblk, struct buffer_head *bh)
@@ -3518,8 +3519,6 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 	ee_len = ext4_ext_get_actual_len(ex);
 	zero_ex1.ee_len = 0;
 	zero_ex2.ee_len = 0;
-	zero_ex1.ee_start_lo = 0;
-	zero_ex2.ee_start_lo = 0;
 
 	trace_ext4_ext_convert_to_initialized_enter(inode, map, ex);
 
@@ -3656,7 +3655,7 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 		max_zeroout = sbi->s_extent_max_zeroout_kb >>
 			(inode->i_sb->s_blocksize_bits - 10);
 
-	if (IS_ENCRYPTED(inode))
+	if (ext4_encrypted_inode(inode))
 		max_zeroout = 0;
 
 	/*
@@ -5012,7 +5011,7 @@ long ext4_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 	 * leave it disabled for encrypted inodes for now.  This is a
 	 * bug we should fix....
 	 */
-	if (IS_ENCRYPTED(inode) &&
+	if (ext4_encrypted_inode(inode) &&
 	    (mode & (FALLOC_FL_COLLAPSE_RANGE | FALLOC_FL_INSERT_RANGE |
 		     FALLOC_FL_ZERO_RANGE)))
 		return -EOPNOTSUPP;

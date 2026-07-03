@@ -751,7 +751,6 @@ void ext4_mb_generate_buddy(struct super_block *sb,
 	grp->bb_fragments = fragments;
 
 	if (free != grp->bb_free) {
-		/* for more specific debugging, sangwoo2.lee */
 		struct ext4_group_desc *desc;
 		ext4_fsblk_t bitmap_blk;
 
@@ -759,7 +758,7 @@ void ext4_mb_generate_buddy(struct super_block *sb,
 		bitmap_blk = ext4_block_bitmap(sb, desc);
 
 		print_block_data(sb, bitmap_blk, bitmap, 0, EXT4_BLOCK_SIZE(sb));
-		/* for more specific debugging */
+
 		ext4_grp_locked_error(sb, group, 0, 0,
 				      "block bitmap and bg descriptor "
 				      "inconsistent: %u vs %u free clusters",
@@ -1466,8 +1465,8 @@ static void mb_free_blocks(struct inode *inode, struct ext4_buddy *e4b,
 
 	if (unlikely(block != -1)) {
 		struct ext4_sb_info *sbi = EXT4_SB(sb);
-		/* for debugging, sangwoo2.lee */
 		struct ext4_group_desc *desc;
+
 		ext4_fsblk_t blocknr, bitmap_blk;
 
 		desc = ext4_get_group_desc(sb, e4b->bd_group, NULL);
@@ -1478,7 +1477,7 @@ static void mb_free_blocks(struct inode *inode, struct ext4_buddy *e4b,
 
 		print_block_data(sb, bitmap_blk, e4b->bd_bitmap, 0
 				, EXT4_BLOCK_SIZE(sb));
-		/* for debugging */
+
 		ext4_grp_locked_error(sb, e4b->bd_group,
 				inode ? inode->i_ino : 0, blocknr,
 				"freeing already freed block "
@@ -2418,7 +2417,7 @@ ssize_t ext4_mb_freefrag_show(struct ext4_sb_info *sbi, char *buf)
 	}
 out:
 	for (i = 0; i < EXT4_FREEFRAG_COLUMN; i++)
-		snprintf(buf, PAGE_SIZE, "%s%s:%llu,", buf, size[i],
+		snprintf(buf, PAGE_SIZE, "%s\"%s\":\"%llu\",", buf, size[i],
 			(unsigned long long)freeblock[i]);
 	buf[strlen(buf)-1] = '\n';
 
@@ -3248,6 +3247,15 @@ ext4_mb_normalize_request(struct ext4_allocation_context *ac,
 	}
 	size = size >> bsbits;
 	start = start_off >> bsbits;
+
+	/*
+	 * For tiny groups (smaller than 8MB) the chosen allocation
+	 * alignment may be larger than group size. Make sure the
+	 * alignment does not move allocation to a different group which
+	 * makes mballoc fail assertions later.
+	 */
+	start = max(start, rounddown(ac->ac_o_ex.fe_logical,
+			(ext4_lblk_t)EXT4_BLOCKS_PER_GROUP(ac->ac_sb)));
 
 	/* don't cover already allocated blocks in selected range */
 	if (ar->pleft && start <= ar->lleft) {
@@ -4588,9 +4596,6 @@ ext4_fsblk_t ext4_mb_new_blocks(handle_t *handle,
 	/* Allow to use superuser reservation for quota file */
 	if (IS_NOQUOTA(ar->inode))
 		ar->flags |= EXT4_MB_USE_ROOT_BLOCKS;
-
-	if (ext4_test_inode_flag(ar->inode, EXT4_INODE_CORE_FILE))
-		ar->flags |= EXT4_MB_USE_EXTRA_ROOT_BLOCKS;
 
 	if ((ar->flags & EXT4_MB_DELALLOC_RESERVED) == 0) {
 		/* Without delayed allocation we need to verify

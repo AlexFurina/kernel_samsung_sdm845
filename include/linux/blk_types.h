@@ -191,6 +191,7 @@ enum rq_flag_bits {
 	__REQ_INTEGRITY,	/* I/O includes block integrity payload */
 	__REQ_FUA,		/* forced unit access */
 	__REQ_PREFLUSH,		/* request for cache flush */
+	__REQ_CRYPT,		/* request inline crypt */
 	__REQ_BARRIER,		/* marks flush req as barrier */
         /* Android specific flags */
 	__REQ_NOENCRYPT,	/* ok to not encrypt (already encrypted at fs
@@ -255,6 +256,7 @@ enum rq_flag_bits {
 
 #define REQ_SORTED		(1ULL << __REQ_SORTED)
 #define REQ_SOFTBARRIER		(1ULL << __REQ_SOFTBARRIER)
+#define REQ_CRYPT		(1ULL << __REQ_CRYPT)
 #define REQ_FUA			(1ULL << __REQ_FUA)
 #define REQ_BARRIER		(1ULL << __REQ_BARRIER)
 #define REQ_NOMERGE		(1ULL << __REQ_NOMERGE)
