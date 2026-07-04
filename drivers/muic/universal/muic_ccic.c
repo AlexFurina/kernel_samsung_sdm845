@@ -559,7 +559,7 @@ static int muic_handle_ccic_ATTACH(muic_data_t *pmuic, CC_NOTI_ATTACH_TYPEDEF *p
 		if (pmuic->retry_afc) {
 			pmuic->retry_afc = false;
 			pr_info("%s: Do AFC restart because of late ccic_attach.\n", __func__);
-			sm5720_afc_restart();
+//			sm5720_afc_restart();
 		}
 #endif
 		/* CCIC ATTACH means NO WATER */
