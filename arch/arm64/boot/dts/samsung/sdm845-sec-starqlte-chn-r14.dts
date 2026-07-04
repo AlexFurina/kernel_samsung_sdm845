@@ -4613,7 +4613,7 @@
 			status = "ok";
 			phandle = <0x3ad>;
 
-			sm5720@66 {
+			max77705@66 {
 				compatible = "maxim,max77705";
 				reg = <0x66>;
 				interrupt-parent = <0xa4>;
