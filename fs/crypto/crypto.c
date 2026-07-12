@@ -519,7 +519,9 @@ static int __init fscrypt_init(void)
 #endif
 
 	return 0;
+#ifdef CONFIG_FSCRYPT_SDP
 fail_free_info:
+#endif
 	kmem_cache_destroy(fscrypt_info_cachep);
 fail_free_ctx:
 	kmem_cache_destroy(fscrypt_ctx_cachep);

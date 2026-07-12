@@ -1080,21 +1080,17 @@ ssize_t sec_bat_show_attrs(struct device *dev,
 		{
 			struct cisd *pcisd = &battery->cisd;
 			struct pad_data *pad_data = pcisd->pad_array;
-			char *temp_buf;;
+			char temp_buf[1024] = {0,};
 			int j = 0;
 
-			if (!temp_buf) {
-				i = -ENOMEM;
-				break;
-			}
 			sprintf(temp_buf+strlen(temp_buf), "\"%s\":\"%d\"",
-					PAD_INDEX_STRING, PAD_INDEX_VALUE);
+				PAD_INDEX_STRING, PAD_INDEX_VALUE);
+
 			while ((pad_data != NULL) && ((pad_data = pad_data->next) != NULL) &&
 					(pad_data->id < MAX_PAD_ID) && (j++ < pcisd->pad_count))
 				sprintf(temp_buf+strlen(temp_buf), ",\"%s%02x\":\"%d\"",
 					PAD_JSON_STRING, pad_data->id, pad_data->count);
 			i += scnprintf(buf + i, PAGE_SIZE - i, "%s\n", temp_buf);
-			kfree(temp_buf);
 		}
 		break;
 	case PREV_BATTERY_DATA:

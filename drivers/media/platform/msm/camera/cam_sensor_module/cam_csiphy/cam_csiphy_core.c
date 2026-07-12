@@ -35,18 +35,11 @@ static int cam_refcnt_status(bool rw, bool protect)
 	int ret = 0;
 
 	spin_lock(&secure_mode_lock);
-	switch (rw) {
-	case 0: // read
-		ret = load_ref_cnt;
-		break;
-	case 1: //write
-		{
-			if (protect) load_ref_cnt++;
-			else load_ref_cnt--;
-			ret = load_ref_cnt;
-		}
-		break;
+	if (rw) {
+		if (protect) load_ref_cnt++;
+		else load_ref_cnt--;
 	}
+	ret = load_ref_cnt;
 	spin_unlock(&secure_mode_lock);
 
 	return ret;
