@@ -154,7 +154,7 @@ static int sx9320_check_hallic_state(char *file_path,
 	if (iRet != sizeof(hall_sysfs))
 		iRet = -EIO;
 	else
-		strlcpy(hall_ic_status, hall_sysfs, sizeof(hall_sysfs) + 1);
+		strncpy(hall_ic_status, hall_sysfs, sizeof(hall_sysfs));
 
 	filp_close(filep, current->files);
 	set_fs(old_fs);
