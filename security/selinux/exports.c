@@ -18,8 +18,6 @@
 
 bool selinux_is_enabled(void)
 {
-// [ SEC_SELINUX_PORTING_COMMON
 	return selinux_enabled;
-// ] SEC_SELINUX_PORTING_COMMON
 }
 EXPORT_SYMBOL_GPL(selinux_is_enabled);

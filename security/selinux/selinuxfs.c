@@ -205,7 +205,6 @@ static ssize_t sel_write_enforce(struct file *file, const char __user *buf,
 		selinux_status_update_setenforce(selinux_enforcing);
 	}
 #endif
-
 	length = count;
 out:
 	kfree(page);
@@ -1926,9 +1925,6 @@ struct vfsmount *selinuxfs_mount;
 static int __init init_sel_fs(void)
 {
 	int err;
-
-// [ SEC_SELINUX_PORTING_COMMON
-// ] SEC_SELINUX_PORTING_COMMON
 
 	if (!selinux_enabled)
 		return 0;

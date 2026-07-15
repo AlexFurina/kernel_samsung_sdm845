@@ -34,12 +34,6 @@
 #include "avc_ss.h"
 #include "classmap.h"
 
-// [ SEC_SELINUX_PORTING_COMMON
-#ifdef SEC_SELINUX_DEBUG
-#include <linux/signal.h>
-#endif
-// ] SEC_SELINUX_PORTING_COMMON
-
 #define AVC_CACHE_SLOTS			512
 #define AVC_DEF_CACHE_THRESHOLD		512
 #define AVC_CACHE_RECLAIM		16
@@ -106,7 +100,7 @@ static inline int avc_hash(u32 ssid, u32 tsid, u16 tclass)
 {
 	return (ssid ^ (tsid<<2) ^ (tclass<<4)) & (AVC_CACHE_SLOTS - 1);
 }
-#ifdef CONFIG_AUDIT
+
 /**
  * avc_dump_av - Display an access vector in human-readable form.
  * @tclass: target security class
@@ -174,7 +168,6 @@ static void avc_dump_query(struct audit_buffer *ab, u32 ssid, u32 tsid, u16 tcla
 	BUG_ON(!tclass || tclass >= ARRAY_SIZE(secclass_map));
 	audit_log_format(ab, " tclass=%s", secclass_map[tclass-1].name);
 }
-#endif
 
 /**
  * avc_init - Initialize the AVC.
@@ -479,7 +472,6 @@ static inline int avc_xperms_audit(u32 ssid, u32 tsid, u16 tclass,
 				u8 perm, int result,
 				struct common_audit_data *ad)
 {
-#ifdef CONFIG_AUDIT
 	u32 audited, denied;
 
 	audited = avc_xperms_audit_required(
@@ -488,9 +480,6 @@ static inline int avc_xperms_audit(u32 ssid, u32 tsid, u16 tclass,
 		return 0;
 	return slow_avc_audit(ssid, tsid, tclass, requested,
 			audited, denied, result, ad, 0);
-#else
-	return 0;
-#endif
 }
 
 static void avc_node_free(struct rcu_head *rhead)
@@ -690,11 +679,7 @@ static struct avc_node *avc_insert(u32 ssid, u32 tsid, u16 tclass,
 		avc_node_populate(node, ssid, tsid, tclass, avd);
 		rc = avc_xperms_populate(node, xp_node);
 		if (rc) {
-//[SEC_SELINUX_PORTING_COMMON
-// P191014-03912 - avc_cache.active_nodes is not decresed when "avc_alloc_node-success"&"avc_xperms_populate-fail"
-//			kmem_cache_free(avc_node_cachep, node);
-			avc_node_kill(node);
-//]SEC_SELINUX_PORTING_COMMON
+			kmem_cache_free(avc_node_cachep, node);
 			return NULL;
 		}
 		head = &avc_cache.slots[hvalue];
@@ -717,7 +702,6 @@ out:
 	return node;
 }
 
-#ifdef CONFIG_AUDIT
 /**
  * avc_audit_pre_callback - SELinux specific information
  * will be called by generic audit code
@@ -752,7 +736,6 @@ static void avc_audit_post_callback(struct audit_buffer *ab, void *a)
 				 ad->selinux_audit_data->result ? 0 : 1);
 	}
 }
-
 
 /* This is the slow part of avc audit with big stack footprint */
 noinline int slow_avc_audit(u32 ssid, u32 tsid, u16 tclass,
@@ -792,7 +775,6 @@ noinline int slow_avc_audit(u32 ssid, u32 tsid, u16 tclass,
 	common_lsm_audit(a, avc_audit_pre_callback, avc_audit_post_callback);
 	return 0;
 }
-#endif
 
 /**
  * avc_add_callback - Register a callback for security events.
@@ -885,12 +867,7 @@ static int avc_update_node(u32 event, u32 perms, u8 driver, u8 xperm, u32 ssid,
 	if (orig->ae.xp_node) {
 		rc = avc_xperms_populate(node, orig->ae.xp_node);
 		if (rc) {
-//[SEC_SELINUX_PORTING_COMMON
-// P191014-03912 - avc_cache.active_nodes is not decresed when "avc_alloc_node-success"&"avc_xperms_populate-fail"
-//			kmem_cache_free(avc_node_cachep, node);
 			avc_node_kill(node);
-//]SEC_SELINUX_PORTING_COMMON
-
 			goto out_unlock;
 		}
 	}
@@ -1009,57 +986,8 @@ static noinline int avc_denied(u32 ssid, u32 tsid,
 	if (flags & AVC_STRICT)
 		return -EACCES;
 
-// [ SEC_SELINUX_PORTING_COMMON
-#ifdef SEC_SELINUX_DEBUG
-	if ((requested & avd->auditallow) && selinux_enforcing && !(avd->flags & AVD_FLAGS_PERMISSIVE)) {
-		char *scontext, *tcontext;
-		const char **perms;
-		int i, perm;
-		int rc1, rc2;
-		u32 scontext_len, tcontext_len;
-
-		perms = secclass_map[tclass-1].perms;
-		i = 0;
-		perm = 1;
-		while (i < (sizeof(requested) * 8)) {
-			if ((perm & requested) && perms[i])
-				break;
-			i++;
-			perm <<= 1;
-		}
-
-		rc1 = security_sid_to_context(ssid, &scontext, &scontext_len);
-		rc2 = security_sid_to_context(tsid, &tcontext, &tcontext_len);
-
-		if (rc1 || rc2) {
-			pr_err("SELinux DEBUG : %s: ssid=%d tsid=%d tclass=%s perm=%s requested(%d) auditallow(%d)\n",
-		       __func__, ssid, tsid, secclass_map[tclass-1].name, perms[i], requested, avd->auditallow);
-		} else {
-			pr_err("SELinux DEBUG : %s: scontext=%s tcontext=%s tclass=%s perm=%s requested(%d) auditallow(%d)\n",
-		       __func__, scontext, tcontext, secclass_map[tclass-1].name, perms[i], requested, avd->auditallow);
-		}
-
-		/* print call stack */
-		pr_err("SELinux DEBUG : FATAL denial and start dump_stack\n");
-		dump_stack();
-
-		/* enforcing : SIGABRT and take debuggerd log */
-		if (selinux_enforcing && !(avd->flags & AVD_FLAGS_PERMISSIVE)) {
-			pr_err("SELinux DEBUG : send SIGABRT to current tsk\n");
-			send_sig(SIGABRT, current, 2);
-		}
-
-		if (!rc1)
-			kfree(scontext);
-		if (!rc2)
-			kfree(tcontext);
-
-	}
-#endif
-
 	if (selinux_enforcing && !(avd->flags & AVD_FLAGS_PERMISSIVE))
 		return -EACCES;
-// ] SEC_SELINUX_PORTING_COMMON
 
 	avc_update_node(AVC_CALLBACK_GRANT, requested, driver, xperm, ssid,
 				tsid, tclass, avd->seqno, NULL, flags);

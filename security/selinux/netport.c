@@ -238,9 +238,6 @@ static __init int sel_netport_init(void)
 {
 	int iter;
 
-// [ SEC_SELINUX_PORTING_COMMON
-// ] SEC_SELINUX_PORTING_COMMON
-
 	if (!selinux_enabled)
 		return 0;
 

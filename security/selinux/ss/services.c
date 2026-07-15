@@ -70,6 +70,8 @@
 #include "ebitmap.h"
 #include "audit.h"
 
+int selinux_android_netlink_route;
+int selinux_android_netlink_getneigh;
 int selinux_policycap_netpeer;
 int selinux_policycap_openperm;
 int selinux_policycap_alwaysnetwork;
@@ -79,6 +81,7 @@ static DEFINE_RWLOCK(policy_rwlock);
 static struct sidtab sidtab;
 struct policydb policydb;
 int ss_initialized;
+
 /*
  * The largest sequence number that has been used when
  * providing an access decision to the access vector cache.
@@ -746,8 +749,6 @@ out:
 	kfree(n);
 	kfree(t);
 
-// [ SEC_SELINUX_PORTING_COMMON
-// ] SEC_SELINUX_PORTING_COMMON
 	if (!selinux_enforcing)
 		return 0;
 	return -EPERM;
@@ -1531,9 +1532,6 @@ out:
 	kfree(s);
 	kfree(t);
 	kfree(n);
-
-// [ SEC_SELINUX_PORTING_COMMON
-// ] SEC_SELINUX_PORTING_COMMON
 	if (!selinux_enforcing)
 		return 0;
 	return -EACCES;
@@ -1825,8 +1823,6 @@ static inline int convert_context_handle_invalid_context(struct context *context
 	char *s;
 	u32 len;
 
-// [ SEC_SELINUX_PORTING_COMMON
-// ] SEC_SELINUX_PORTING_COMMON
 	if (selinux_enforcing)
 		return -EINVAL;
 
@@ -1997,6 +1993,10 @@ static void security_load_policycaps(void)
 						  POLICYDB_CAPABILITY_OPENPERM);
 	selinux_policycap_alwaysnetwork = ebitmap_get_bit(&policydb.policycaps,
 						  POLICYDB_CAPABILITY_ALWAYSNETWORK);
+
+	selinux_android_netlink_route = policydb.android_netlink_route;
+	selinux_android_netlink_getneigh = policydb.android_netlink_getneigh;
+	selinux_nlmsg_init();
 }
 
 static int security_preserve_bools(struct policydb *p);
@@ -2466,9 +2466,9 @@ out:
  * The caller must acquire the policy_rwlock before calling this function.
  */
 static inline int __security_genfs_sid(const char *fstype,
-					   char *path,
-					   u16 orig_sclass,
-					   u32 *sid)
+				       char *path,
+				       u16 orig_sclass,
+				       u32 *sid)
 {
 	int len;
 	u16 sclass;
@@ -2489,30 +2489,24 @@ static inline int __security_genfs_sid(const char *fstype,
 	}
 
 	rc = -ENOENT;
-	if (!genfs || cmp){
-		printk(KERN_ERR "SELinux: %s: genfs || cmp\n", __func__);
+	if (!genfs || cmp)
 		goto out;
-	}
 
 	for (c = genfs->head; c; c = c->next) {
 		len = strlen(c->u.name);
 		if ((!c->v.sclass || sclass == c->v.sclass) &&
-			(strncmp(c->u.name, path, len) == 0))
+		    (strncmp(c->u.name, path, len) == 0))
 			break;
 	}
 
 	rc = -ENOENT;
-	if (!c) {
-		printk(KERN_ERR "SELinux: %s empty ocontext c \n", __func__);
+	if (!c)
 		goto out;
-	}
 
 	if (!c->sid[0]) {
 		rc = sidtab_context_to_sid(&sidtab, &c->context[0], &c->sid[0]);
-		if (rc) {
-			printk(KERN_ERR "SELinux: %s: sid\n", __func__);
+		if (rc)
 			goto out;
-		}
 	}
 
 	*sid = c->sid[0];
@@ -2552,7 +2546,6 @@ int security_fs_use(struct super_block *sb)
 {
 	int rc = 0;
 	struct ocontext *c;
-
 	struct superblock_security_struct *sbsec = sb->s_security;
 	const char *fstype = sb->s_type->name;
 
@@ -2575,15 +2568,15 @@ int security_fs_use(struct super_block *sb)
 		}
 		sbsec->sid = c->sid[0];
 	} else {
-			rc = __security_genfs_sid(fstype, "/", SECCLASS_DIR,
-						  &sbsec->sid);
-			if (rc) {
-				sbsec->behavior = SECURITY_FS_USE_NONE;
-				rc = 0;
-			} else {
-				sbsec->behavior = SECURITY_FS_USE_GENFS;
-			}
+		rc = __security_genfs_sid(fstype, "/", SECCLASS_DIR,
+					  &sbsec->sid);
+		if (rc) {
+			sbsec->behavior = SECURITY_FS_USE_NONE;
+			rc = 0;
+		} else {
+			sbsec->behavior = SECURITY_FS_USE_GENFS;
 		}
+	}
 
 out:
 	read_unlock(&policy_rwlock);
@@ -3260,7 +3253,6 @@ out:
 	return match;
 }
 
-#ifdef CONFIG_AUDIT
 static int (*aurule_callback)(void) = audit_update_lsm_rules;
 
 static int aurule_avc_callback(u32 event)
@@ -3283,7 +3275,6 @@ static int __init aurule_init(void)
 	return err;
 }
 __initcall(aurule_init);
-#endif
 
 #ifdef CONFIG_NETLABEL
 /**
