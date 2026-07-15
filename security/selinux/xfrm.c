@@ -258,7 +258,6 @@ out:
  */
 int selinux_xfrm_decode_session(struct sk_buff *skb, u32 *sid, int ckall)
 {
-
 	if (skb == NULL) {
 		*sid = SECSID_NULL;
 		return 0;

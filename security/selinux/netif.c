@@ -277,9 +277,6 @@ static __init int sel_netif_init(void)
 {
 	int i;
 
-// [ SEC_SELINUX_PORTING_COMMON
-// ] SEC_SELINUX_PORTING_COMMON
-
 	if (!selinux_enabled)
 		return 0;
 
