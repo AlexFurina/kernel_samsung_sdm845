@@ -16,23 +16,6 @@
 #include <dt-bindings/input/input.h>
 
 /{
-	reserved-memory {
-		/*
-		 * We need this region only if we use Qualcomm WiFi solution,
-		 * otherwise no need.
-		 */
-		wlan_fw_region: wlan_fw_region@8df00000 {
-			/delete-property/ reg;
-		};
-
-		camera_mem: camera_mem_region {
-			compatible = "shared-dma-pool";
-			recycleable;
-			reg = <0x0 0xC0000000 0x0 0x24400000>;
-		};
-
-	};
-
 	aliases {
 		i2c22 = &i2c_22;
 		spi2 = &qupv3_se2_spi;

@@ -16,6 +16,7 @@
 #include "../qcom/sdm845-mtp.dtsi"
 #include "../sdm845-sec-common.dtsi"
 #include "../sdm845-max77705.dtsi"
+#include "sdm845-sec-crownqlte-memory.dtsi"
 #include "battery-data-crownq-common.dtsi"
 #include "sdm845-sec-crownqlte-pm-common.dtsi"
 #include "sdm845-sec-crownqlte-pm-r02.dtsi"

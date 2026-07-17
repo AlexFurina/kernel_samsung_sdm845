@@ -17,6 +17,7 @@
 #include "../sdm845-sec-common.dtsi"
 #include "../sdm845-max77705.dtsi"
 #include "../panels/dsi_panel_S6E3HA8_AMB622NP01_wqhd_octa_cmd_jpn.dtsi"
+#include "sdm845-sec-star2qlte-memory.dtsi"
 #include "battery-data-star2q-md05-common.dtsi"
 #include "sdm845-sec-star2qlte-pm-common.dtsi"
 #include "sdm845-sec-star2qlte-pm-r07.dtsi"
