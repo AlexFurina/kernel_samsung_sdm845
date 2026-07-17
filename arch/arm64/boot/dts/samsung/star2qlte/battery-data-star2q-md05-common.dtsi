@@ -407,7 +407,7 @@
 		/*fuelgauge,auto_discharge_en;*/
 		fuelgauge,discharge_temp_threshold = <600>;
 		fuelgauge,discharge_volt_threshold = <4200>;
-		fuelgauge,ttf_capacity = <3500>;
+		fuelgauge,ttf_capacity = <3150>;
 		fuelgauge,cv_data = <
 			2488	829	1809
 			2409	832	1796
