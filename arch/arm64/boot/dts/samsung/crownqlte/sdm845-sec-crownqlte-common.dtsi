@@ -16,28 +16,6 @@
 #include "sdm845-sec-crownqlte-input-common.dtsi"
 
 /{
-	reserved-memory {
-		/*
-		 * We need this region only if we use Qualcomm WiFi solution,
-		 * otherwise no need.
-		 */
-		wlan_fw_region: wlan_fw_region@8df00000 {
-			/delete-property/ reg;
-		};
-
-		/* rkp_region reserves 17MB for 8G RAM */
-		rkp_region: rkp_region@9FA00000 {
-			reg = <0x0 0x9FA00000 0x0 0x01100000>;
-		};
-
-		camera_mem: camera_mem_region {
-			compatible = "shared-dma-pool";
-			recycleable;
-			reg = <0x0 0xC0000000 0x0 0x24400000>;
-		};
-
-	};
-
 	aliases {
 		i2c22 = &i2c_22;
 		spi2 = &qupv3_se2_spi;
