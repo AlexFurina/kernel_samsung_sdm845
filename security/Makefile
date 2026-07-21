@@ -38,5 +38,3 @@ obj-y += sdp/
 obj-y += sdp/built-in.o
 endif
 
-#TZ ICCC
-obj-$(CONFIG_TZ_ICCC)     += tz_iccc/
