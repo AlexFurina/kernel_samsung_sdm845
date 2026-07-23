@@ -1321,32 +1321,6 @@ config CROSS_COMPILE_ARM32
 
 endmenu
 
-config TIMA
-	bool "Enable TIMA(Trustzone based Integrity Measurement Archtecture feature"
-	default n
-
-config TIMA_LKMAUTH
-	bool "Enable LKM authentication by TIMA"
-	depends on MODULES
-	help
-	  TIMA authenticates loaded kernel modules. Disable it if you don't
-	  want TIMA enabled.
-
-config TIMA_LKM_BLOCK
-	bool "Block LKM by TIMA" 
-	select TIMA_LKMAUTH
-	help
-	  LKM is disapproved by Samsung security policy.
-	  This feature blocks any insmod.
-
-config TIMA_LKMAUTH_CODE_PROT
-	bool "Support kernel Module"
-	depends on MODULES
-	default n
-	help
-	  When enabled, this feature will mark all Executable sections in an
-	  LKM as RO
-
 menu "Power management options"
 
 source "kernel/power/Kconfig"

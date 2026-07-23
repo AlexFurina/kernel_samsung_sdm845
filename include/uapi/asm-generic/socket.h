@@ -94,9 +94,4 @@
 
 #define SO_COOKIE		57
 
-#ifdef CONFIG_KNOX_NCM
-#define SO_SET_DOMAIN_NAME 1000
-#define SO_SET_DNS_UID 1001
-#define SO_SET_DNS_PID 1002
-#endif // CONFIG_KNOX_NCM
 #endif /* __ASM_GENERIC_SOCKET_H */

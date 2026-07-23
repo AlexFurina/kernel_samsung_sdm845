@@ -387,11 +387,7 @@ tsk	.req	x28		// current thread_info
 	.pushsection ".entry.text", "ax"
 
 	.align	11
-#ifdef CONFIG_RKP_CFP_JOPP
-VECTOR_ENTRY(vectors)
-#else
 ENTRY(vectors)
-#endif
 	kernel_ventry	1, sync_invalid			// Synchronous EL1t
 	kernel_ventry	1, irq_invalid			// IRQ EL1t
 	kernel_ventry	1, fiq_invalid			// FIQ EL1t
@@ -1044,11 +1040,7 @@ __ni_sys_trace:
 	.endm
 
 	.align	11
-#ifdef CONFIG_RKP_CFP_JOPP
-VECTOR_ENTRY(tramp_vectors)
-#else
 ENTRY(tramp_vectors)
-#endif
 	.space	0x400
 
 	tramp_ventry
