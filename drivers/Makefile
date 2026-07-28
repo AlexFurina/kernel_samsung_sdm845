@@ -219,5 +219,3 @@ ifeq ($(CONFIG_GATOR), y)
 	obj-$(CONFIG_GATOR)				+= gator/
 endif
 
-#TZIC
-obj-y  += security/samsung/tzic/

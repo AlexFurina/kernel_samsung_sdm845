@@ -238,6 +238,4 @@ source "drivers/gator/Kconfig"
 
 source "drivers/mpsd/Kconfig"
 
-source "drivers/security/samsung/tzic/Kconfig"
-
 endmenu
