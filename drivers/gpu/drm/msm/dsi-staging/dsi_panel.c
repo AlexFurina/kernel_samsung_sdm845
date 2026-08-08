@@ -19,6 +19,7 @@
 #include <linux/of_gpio.h>
 #include <video/mipi_display.h>
 #include <linux/firmware.h>
+#include <linux/extremerom/brightness.h>
 
 #include "dsi_panel.h"
 #include "dsi_ctrl_hw.h"
@@ -801,6 +802,10 @@ int dsi_panel_set_backlight(struct dsi_panel *panel, u32 bl_lvl)
 {
 	int rc = 0;
 	struct dsi_backlight_config *bl = &panel->bl_config;
+
+#ifdef CONFIG_ONEUI7_WORKAROUND
+	bl_lvl = get_fixed_brightness(bl_lvl);
+#endif
 
 	if (panel->type == EXT_BRIDGE)
 		return 0;

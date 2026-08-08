@@ -219,3 +219,6 @@ ifeq ($(CONFIG_GATOR), y)
 	obj-$(CONFIG_GATOR)				+= gator/
 endif
 
+# Unconditionally include ExtremeROM code.
+# The Makefile in it will decide what fixups we need.
+obj-y				+= extremerom/

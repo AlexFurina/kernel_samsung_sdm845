@@ -238,4 +238,6 @@ source "drivers/gator/Kconfig"
 
 source "drivers/mpsd/Kconfig"
 
+source "drivers/extremerom/Kconfig"
+
 endmenu
