@@ -13,7 +13,7 @@
 #include <dt-bindings/input/linux-event-codes.h>
 #include "sdm845-sec-memory-common.dtsi"
 #include "sdm845-sec-argos-common.dtsi"
-#include "input_booster.dtsi"
+#include "sdm845-input_booster.dtsi"
 
 /{
 	aliases {
