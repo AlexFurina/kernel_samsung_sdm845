@@ -211,9 +211,6 @@ obj-y	+= ccic/
 # CONFIG_SEC_DEBUG
 obj-y				+= debug/
 
-# MPSD driver
-obj-$(CONFIG_MPSD)	+= mpsd/
-
 # streamline
 ifeq ($(CONFIG_GATOR), y)
 	obj-$(CONFIG_GATOR)				+= gator/
