@@ -402,16 +402,6 @@ static enum log_flags console_prev;
 static u64 clear_seq;
 static u32 clear_idx;
 
-#ifdef CONFIG_SEC_LOG_KNOX
-/* { SecProductFeature_KNOX.SEC_PRODUCT_FEATURE_KNOX_SUPPORT_MDM */
-/* the next printk record to read after the last 'clear_knox' command */
-static u64 clear_seq_knox;
-static u32 clear_idx_knox;
-
-#define SYSLOG_ACTION_READ_CLEAR_KNOX 99
-/* } SecProductFeature_KNOX.SEC_PRODUCT_FEATURE_KNOX_SUPPORT_MDM */
-#endif /* CONFIG_SEC_LOG_KNOX */
-
 #ifdef CONFIG_SEC_DEBUG
 #define PREFIX_MAX		48
 #else
@@ -551,16 +541,6 @@ static int log_make_free_space(u32 msg_size)
 		clear_seq = log_first_seq;
 		clear_idx = log_first_idx;
 	}
-
-#ifdef CONFIG_SEC_LOG_KNOX
-	/* { SecProductFeature_KNOX.SEC_PRODUCT_FEATURE_KNOX_SUPPORT_MDM */
-	/* messages are gone, move to first available one */
-	if (clear_seq_knox < log_first_seq) {
-		clear_seq_knox = log_first_seq;
-		clear_idx_knox = log_first_idx;
-	}
-	/* } SecProductFeature_KNOX.SEC_PRODUCT_FEATURE_KNOX_SUPPORT_MDM */
-#endif /* CONFIG_SEC_LOG_KNOX */
 
 	/* sequence numbers are equal, so the log buffer is empty */
 	if (logbuf_has_space(msg_size, log_first_seq == log_next_seq))
@@ -1492,11 +1472,7 @@ static int syslog_print(char __user *buf, int size)
 	return len;
 }
 
-#ifdef CONFIG_SEC_LOG_KNOX
-static int syslog_print_all(char __user *buf, int size, bool clear, bool knox)
-#else
 static int syslog_print_all(char __user *buf, int size, bool clear)
-#endif
 {
 	char *text;
 	int len = 0;
@@ -1516,20 +1492,8 @@ static int syslog_print_all(char __user *buf, int size, bool clear)
 		 * Find first record that fits, including all following records,
 		 * into the user-provided buffer for this dump.
 		 */
-#ifdef CONFIG_SEC_LOG_KNOX
-		/* { SecProductFeature_KNOX.SEC_PRODUCT_FEATURE_KNOX_SUPPORT_MDM */
-		if (knox) { //MDM edmaudit
-			seq = clear_seq_knox;
-			idx = clear_idx_knox;
-		} else {
-			seq = clear_seq;
-			idx = clear_idx;
-		}
-		/* } SecProductFeature_KNOX.SEC_PRODUCT_FEATURE_KNOX_SUPPORT_MDM */
-#else
 		seq = clear_seq;
 		idx = clear_idx;
-#endif
 
 		prev = 0;
 		while (seq < log_next_seq) {
@@ -1541,21 +1505,8 @@ static int syslog_print_all(char __user *buf, int size, bool clear)
 			seq++;
 		}
 
-#ifdef CONFIG_SEC_LOG_KNOX
-		/* { SecProductFeature_KNOX.SEC_PRODUCT_FEATURE_KNOX_SUPPORT_MDM */
-		/* move first record forward until length fits into the buffer */
-		if (knox) { // MDM edmaudit
-			seq = clear_seq_knox;
-			idx = clear_idx_knox;
-		} else {
-			seq = clear_seq;
-			idx = clear_idx;
-		}
-		/* } SecProductFeature_KNOX.SEC_PRODUCT_FEATURE_KNOX_SUPPORT_MDM */
-#else
 		seq = clear_seq;
 		idx = clear_idx;
-#endif
 
 		prev = 0;
 		while (len > size && seq < log_next_seq) {
@@ -1601,24 +1552,10 @@ static int syslog_print_all(char __user *buf, int size, bool clear)
 		}
 	}
 
-#ifdef CONFIG_SEC_LOG_KNOX
-	/* { SecProductFeature_KNOX.SEC_PRODUCT_FEATURE_KNOX_SUPPORT_MDM */
-	if (clear) {
-		if (knox) { //MDM edmaudit
-			clear_seq_knox = log_next_seq;
-			clear_idx_knox = log_next_idx;
-		} else {
-			clear_seq = log_next_seq;
-			clear_idx = log_next_idx;
-		}
-	}
-	/* } SecProductFeature_KNOX.SEC_PRODUCT_FEATURE_KNOX_SUPPORT_MDM */
-#else
 	if (clear) {
 		clear_seq = log_next_seq;
 		clear_idx = log_next_idx;
 	}
-#endif
 
 	raw_spin_unlock_irq(&logbuf_lock);
 
@@ -1674,19 +1611,11 @@ int do_syslog(int type, char __user *buf, int len, int source)
 			error = -EFAULT;
 			goto out;
 		}
-#ifdef CONFIG_SEC_LOG_KNOX
-			error = syslog_print_all(buf, len, clear, false);
-#else
 			error = syslog_print_all(buf, len, clear);
-#endif
 		break;
 	/* Clear ring buffer */
 	case SYSLOG_ACTION_CLEAR:
-#ifdef CONFIG_SEC_LOG_KNOX
-		syslog_print_all(NULL, 0, true, false);
-#else
 		syslog_print_all(NULL, 0, true);
-#endif
 		break;	/* Disable logging to console */
 	case SYSLOG_ACTION_CONSOLE_OFF:
 		if (saved_console_loglevel == LOGLEVEL_DEFAULT)
@@ -1751,23 +1680,6 @@ int do_syslog(int type, char __user *buf, int len, int source)
 	case SYSLOG_ACTION_SIZE_BUFFER:
 		error = log_buf_len;
 		break;
-#ifdef CONFIG_SEC_LOG_KNOX
-	/* { SecProductFeature_KNOX.SEC_PRODUCT_FEATURE_KNOX_SUPPORT_MDM edmaudit Read last kernel messages */
-	case SYSLOG_ACTION_READ_CLEAR_KNOX:
-		error = -EINVAL;
-		if (!buf || len < 0)
-			goto out;
-		error = 0;
-		if (!len)
-			goto out;
-		if (!access_ok(VERIFY_WRITE, buf, len)) {
-			error = -EFAULT;
-			goto out;
-		}
-		error = syslog_print_all(buf, len, /* clear */ true, /* knox */true);
-		break;
-	/* } SecProductFeature_KNOX.SEC_PRODUCT_FEATURE_KNOX_SUPPORT_MDM */
-#endif
 	default:
 		error = -EINVAL;
 		break;

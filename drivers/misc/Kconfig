@@ -829,12 +829,6 @@ config QPNP_MISC
 	  and the driver provides an API to check if this interrupt
 	  is available on the current PMIC chip.
 
-config KNOX_KAP
-	bool "Enable KNOX KAP mode"
-	default n
-	help
-	  Knox Active Protection mode
-
 config FORCE_FAST_CHARGE
 	bool "Force faster charge rate for USB"
 	default y
