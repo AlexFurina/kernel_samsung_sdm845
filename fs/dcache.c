@@ -42,9 +42,6 @@
 
 #include "internal.h"
 #include "mount.h"
-#ifdef CONFIG_RKP_NS_PROT
-u8 ns_prot = 0;
-#endif
 
 /*
  * Usage:
@@ -3163,11 +3160,7 @@ restart:
 			if (mnt != parent) {
 				dentry = ACCESS_ONCE(mnt->mnt_mountpoint);
 				mnt = parent;
-#ifdef CONFIG_RKP_NS_PROT
-				vfsmnt = mnt->mnt;
-#else
 				vfsmnt = &mnt->mnt;
-#endif
 				continue;
 			}
 			if (!error)
@@ -3694,7 +3687,4 @@ void __init vfs_caches_init(void)
 	mnt_init();
 	bdev_cache_init();
 	chrdev_init();
-#ifdef CONFIG_RKP_NS_PROT
-	ns_prot = 1;
-#endif
 }

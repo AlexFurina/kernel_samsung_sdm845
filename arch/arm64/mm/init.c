@@ -37,7 +37,6 @@
 #include <linux/swiotlb.h>
 #include <linux/vmalloc.h>
 #include <linux/mm.h>
-#include <linux/rkp.h>
 
 #include <asm/boot.h>
 #include <asm/fixmap.h>
@@ -59,8 +58,6 @@
  */
 s64 memstart_addr __ro_after_init = -1;
 phys_addr_t arm64_dma_phys_limit __ro_after_init;
-
-extern int rkp_cred_enable;
 
 #ifdef CONFIG_BLK_DEV_INITRD
 static int __init early_initrd(char *p)
@@ -322,9 +319,6 @@ void __init arm64_memblock_init(void)
 void __init bootmem_init(void)
 {
 	unsigned long min, max;
-#ifdef CONFIG_UH_RKP
-	extern u32 rkp_ro_buf_ready;
-#endif
 
 	set_memsize_kernel_type(MEMSIZE_KERNEL_PAGING);
 	min = PFN_UP(memblock_start_of_DRAM());
@@ -341,13 +335,8 @@ void __init bootmem_init(void)
 	 */
 	arm64_memory_present();
 
-#ifdef CONFIG_UH_RKP
-	rkp_ro_buf_ready = 0;
-#endif
 	sparse_init();
-#ifdef CONFIG_UH_RKP
-	rkp_ro_buf_ready = 1;
-#endif
+
 	zone_sizes_init(min, max);
 
 	memblock_dump_all();
@@ -514,9 +503,6 @@ void __init mem_init(void)
 	}
 }
 
-#ifdef CONFIG_UH_RKP
-u8 rkp_def_init_done = 0;
-#endif
 void free_initmem(void)
 {
 	free_reserved_area(lm_alias(__init_begin),
@@ -528,11 +514,6 @@ void free_initmem(void)
 	 * is not supported by kallsyms.
 	 */
 	unmap_kernel_range((u64)__init_begin, (u64)(__init_end - __init_begin));
-#ifdef CONFIG_UH_RKP
-	rkp_def_init_done = 1;
-	isb();
-	uh_call(UH_APP_RKP, RKP_DEFERRED_START, 0, 0, 0, 0);
-#endif
 
 }
 
