@@ -907,9 +907,8 @@ static void tx_wakeup_worker(struct edge_info *einfo)
 			einfo->tx_resume_needed = false;
 			trigger_resume = true;
 		}
-	}
-	if (waitqueue_active(&einfo->tx_blocked_queue)) { /* tx waiting ?*/
-		trigger_wakeup = true;
+		if (waitqueue_active(&einfo->tx_blocked_queue))/* tx waiting ?*/
+			trigger_wakeup = true;
 	}
 	spin_unlock_irqrestore(&einfo->write_lock, flags);
 	if (trigger_wakeup)
@@ -963,8 +962,9 @@ static void __rx_worker(struct edge_info *einfo, bool atomic_ctx)
 		einfo->xprt_if.glink_core_if_ptr->link_up(&einfo->xprt_if);
 	}
 
-	if ((atomic_ctx) && ((einfo->tx_resume_needed) ||
-		(waitqueue_active(&einfo->tx_blocked_queue)))) /* tx waiting ?*/
+	if ((atomic_ctx) && ((einfo->tx_resume_needed)
+	    || (einfo->tx_blocked_signal_sent)
+	    || (waitqueue_active(&einfo->tx_blocked_queue)))) /* tx waiting ?*/
 		tx_wakeup_worker(einfo);
 
 	/*
@@ -2096,6 +2096,7 @@ static int tx_data(struct glink_transport_if *if_ptr, uint16_t cmd_id,
 	if (cmd.id == TRACER_PKT_CMD)
 		tracer_pkt_log_event((void *)(pctx->data), GLINK_XPRT_TX);
 
+	SMEM_IPC_LOG(einfo, __func__, cmd.id, cmd.lcid, cmd.riid);
 	ret = fifo_write_complex(einfo, &cmd, sizeof(cmd), data_start, size,
 							zeros, zeros_size);
 	if (ret < 0) {
@@ -2570,6 +2571,16 @@ static int glink_smem_native_probe(struct platform_device *pdev)
 	if (rc < 0)
 		pr_err("%s: enable_irq_wake() failed on %d\n", __func__,
 								irq_line);
+	einfo->debug_mask = QCOM_GLINK_DEBUG_ENABLE;
+	snprintf(log_name, sizeof(log_name), "%s_%s_xprt",
+			einfo->xprt_cfg.edge, einfo->xprt_cfg.name);
+	if (einfo->debug_mask & QCOM_GLINK_DEBUG_ENABLE)
+		einfo->log_ctx =
+			ipc_log_context_create(NUM_LOG_PAGES, log_name, 0);
+	if (!einfo->log_ctx)
+		GLINK_ERR("%s: unable to create log context for [%s:%s]\n",
+			__func__, einfo->xprt_cfg.edge,
+			einfo->xprt_cfg.name);
 
 	key = "cpu-affinity";
 	cpu_size = of_property_count_u32_elems(node, key);

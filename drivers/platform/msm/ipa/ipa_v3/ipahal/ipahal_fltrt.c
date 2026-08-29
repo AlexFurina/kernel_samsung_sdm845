@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -14,6 +14,7 @@
 #include <linux/ipc_logging.h>
 #include <linux/debugfs.h>
 #include <linux/ipa.h>
+#include <linux/delay.h>
 #include "ipahal.h"
 #include "ipahal_fltrt.h"
 #include "ipahal_fltrt_i.h"
@@ -3189,6 +3190,7 @@ int ipahal_rt_generate_empty_img(u32 tbls_num, u32 hash_hdr_size,
  * @mem: mem object that points to DMA mem representing the hdr structure
  * @atomic: should DMA allocation be executed with atomic flag
  */
+#define BUFALLOC_RETRY_CNT 10
 int ipahal_flt_generate_empty_img(u32 tbls_num, u32 hash_hdr_size,
 	u32 nhash_hdr_size, u64 ep_bitmap, struct ipa_mem_buffer *mem,
 	bool atomic)
@@ -3242,13 +3244,24 @@ int ipahal_flt_generate_empty_img(u32 tbls_num, u32 hash_hdr_size,
 	mem->size = tbls_num * obj->tbl_hdr_width;
 	if (ep_bitmap)
 		mem->size += obj->tbl_hdr_width;
-	mem->base = dma_alloc_coherent(ipahal_ctx->ipa_pdev, mem->size,
-		&mem->phys_base, flag);
+	
+	i = 0;
+	do {
+		mem->base = dma_alloc_coherent(ipahal_ctx->ipa_pdev, mem->size,
+			&mem->phys_base, flag);
+		if (!mem->base) {
+			if (atomic)
+				mdelay(10);
+			else
+				msleep(20);
+		}
+	} while(!mem->base && i++ < BUFALLOC_RETRY_CNT);
+	
 	if (!mem->base) {
 		IPAHAL_ERR("fail to alloc DMA buff of size %d\n", mem->size);
 		return -ENOMEM;
 	}
-
+	
 	if (ep_bitmap) {
 		flt_bitmap = obj->create_flt_bitmap(ep_bitmap);
 		IPAHAL_DBG("flt bitmap 0x%llx\n", flt_bitmap);
@@ -3479,6 +3492,7 @@ bdy_alloc_fail:
 int ipahal_fltrt_allocate_hw_sys_tbl(struct ipa_mem_buffer *tbl_mem)
 {
 	struct ipahal_fltrt_obj *obj;
+	gfp_t flag = GFP_KERNEL;
 
 	IPAHAL_DBG_LOW("Entry\n");
 
@@ -3496,10 +3510,14 @@ int ipahal_fltrt_allocate_hw_sys_tbl(struct ipa_mem_buffer *tbl_mem)
 
 	/* add word for rule-set terminator */
 	tbl_mem->size += obj->tbl_width;
-
+alloc:
 	tbl_mem->base = dma_alloc_coherent(ipahal_ctx->ipa_pdev, tbl_mem->size,
-		&tbl_mem->phys_base, GFP_KERNEL);
+		&tbl_mem->phys_base, flag);
 	if (!tbl_mem->base) {
+		if (flag == GFP_KERNEL) {
+			flag = GFP_ATOMIC;
+			goto alloc;
+		}
 		IPAHAL_ERR("fail to alloc DMA buf of size %d\n",
 			tbl_mem->size);
 		return -ENOMEM;
